@@ -1,4 +1,4 @@
-# J-6 Composer Lab
+# J-6 MIDI Composer
 
 Roland J-6のUSB MIDI／USB Audioをブラウザで確認できる非公式Webツールです。
 
