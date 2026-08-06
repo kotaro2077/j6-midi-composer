@@ -1,0 +1,3473 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Roland J-6専用 USB MIDI 作曲・学習ツール。鍵盤、コード判定、J-6コードセット、音色バンク、MIDIモニターを1画面で確認できます。">
+<title>J-6 Composer Lab</title>
+<style>
+:root{
+ --bg:#08090b;
+ --panel:#111318;
+ --panel2:#181b21;
+ --line:#343943;
+ --text:#f7f7f3;
+ --muted:#9aa0aa;
+ --accent:#ff6a2a;
+ --accent2:#39a9ff;
+ --green:#58d68d;
+ --red:#ff5f62;
+ --white:#f4f1e8;
+ --black:#090a0c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,"Noto Sans JP",system-ui,sans-serif}
+button,select,input{font:inherit}
+button,select{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 12px}
+button{cursor:pointer;font-weight:800}
+button:hover{border-color:var(--accent)}
+button.active,.primary{background:var(--accent);color:#101114;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+main{width:min(1580px,calc(100% - 20px));margin:auto;padding:10px 0 28px}
+header{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:stretch}
+.brand,.connection,.panel{background:var(--panel);border:1px solid var(--line)}
+.brand{padding:18px 20px;display:flex;align-items:end;gap:16px}
+.brand h1{margin:0;font-size:clamp(2rem,4vw,4.2rem);line-height:.9;letter-spacing:-.05em}
+.brand p{margin:0 0 4px;color:var(--muted);font-weight:700}
+.connection{padding:12px;display:grid;grid-template-columns:repeat(2,minmax(190px,1fr));gap:8px;min-width:550px;align-content:start}
+.connection label,.field label{display:grid;gap:5px;color:var(--muted);font-size:.82rem;font-weight:800}
+.connection .wide{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+.status-dot{width:11px;height:11px;border-radius:50%;background:#8d9198}
+.status-dot.ok{background:var(--green)}.status-dot.err{background:var(--red)}
+.tabs{display:flex;gap:5px;margin-top:8px;overflow:auto}
+.tabs button{white-space:nowrap}
+.workspace{margin-top:8px}
+.view{display:none}.view.active{display:block}
+.grid-main{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.stack{display:grid;gap:8px;min-width:0}
+.panel,.panel-body,.panel-head,.grid-main>*{min-width:0}
+.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line)}
+.panel-head h2{font-size:1.05rem;margin:0}.panel-head span{color:var(--muted);font-size:.86rem}
+.panel-body{padding:14px}
+.live-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.metric{background:var(--panel2);padding:13px;min-width:0}
+.metric small{display:block;color:var(--muted);font-weight:800;margin-bottom:5px}
+.metric strong{display:block;font-size:clamp(1.25rem,2.3vw,2.15rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric.notes{grid-column:1/-1}.metric.notes strong{font-size:1.35rem;white-space:normal}
+#liveChord{
+ white-space:normal;
+ overflow:visible;
+ text-overflow:clip;
+ overflow-wrap:anywhere;
+ word-break:break-word;
+ line-height:1.08;
+}
+.keyboard-wrap{overflow-x:auto;overflow-y:hidden;padding:10px;background:#090a0c;max-width:100%}
+.keyboard{height:150px;position:relative;user-select:none;touch-action:none;flex:none}
+.key{position:absolute;top:0;display:flex;justify-content:center;cursor:pointer;border:1px solid #060606;overflow:visible}
+.key.white{height:100%;align-items:flex-end;padding-bottom:5px;background:linear-gradient(#fff,#d7d6d0);color:#16171a;z-index:1}
+.key.black{height:90px;align-items:flex-start;padding-top:8px;background:linear-gradient(#303238,#060607);color:white;z-index:2}
+.key-label{display:grid;gap:2px;text-align:center;line-height:1}
+.key-label b{font-size:.70rem}.key-label small{font-size:.56rem;opacity:.72}
+.key.black .key-label{transform:translateY(2px)}
+.octave-mark{position:absolute;bottom:24px;left:4px;font-size:.63rem;font-weight:900;opacity:.58}
+.key.active.white{background:linear-gradient(#ffd7c8,#ff8b61)}
+.key.active.black{background:linear-gradient(#ff7b4c,#6d2411)}
+.key.chord-tone::after{content:"";position:absolute;bottom:34px;width:12px;height:12px;border-radius:50%;background:var(--accent2);box-shadow:0 0 12px var(--accent2)}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.field{display:grid;gap:5px}
+.field input[type=range]{width:100%}
+.toggle-row{display:flex;gap:6px;flex-wrap:wrap}
+.chord-pad-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(155px,100%),1fr));gap:7px;align-items:stretch;min-width:0}
+.chord-pad{min-width:0;min-height:84px;text-align:left;position:relative;overflow:hidden}
+.chord-pad b,.chord-pad small{overflow-wrap:anywhere}
+.chord-pad b{display:block;font-size:1.25rem}.chord-pad small{display:block;color:var(--muted);margin-top:5px;line-height:1.25}
+.chord-pad .trigger{position:absolute;right:8px;top:7px;color:var(--accent2);font-size:.8rem}
+.chord-pad.read-only{
+ padding:11px 12px;
+ border:1px solid var(--line);
+ background:var(--panel2);
+ cursor:default;
+ user-select:text;
+}
+.set-toolbar,.tone-toolbar{display:grid;grid-template-columns:170px 1fr 1fr;gap:8px}
+.search{width:100%}
+.table-wrap{overflow:auto;max-height:650px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:#202329;z-index:1;color:var(--muted)}
+tr:hover td{background:#1b1e23}
+.tone-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:7px}
+.tone-bank{background:var(--panel2);padding:10px}
+.tone-bank h3{margin:0 0 8px;font-size:1rem}
+.tone-button{display:block;width:100%;margin-top:4px;text-align:left}
+.tone-button.active{background:var(--accent2);color:#151515}
+.device-guide{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.guide-card{background:var(--panel2);padding:14px}
+.guide-card b{display:block;margin-bottom:7px}.guide-card p{margin:0;color:var(--muted);line-height:1.55}
+.monitor{height:520px;overflow:auto;background:#0c0d10;padding:10px;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.log-line{display:grid;grid-template-columns:90px 70px 1fr;gap:8px;padding:4px 6px;border-bottom:1px solid #202329}
+.log-in{color:#8dd7ff}.log-out{color:#ffd26b}
+.reference-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.reference-card{padding:15px;background:var(--panel2)}
+.reference-card h3{margin:0 0 9px}.reference-card p,.reference-card li{color:var(--muted);line-height:1.55}
+.reference-card a{color:var(--accent2)}
+.warn{border-left:5px solid var(--accent2);padding:10px 12px;background:#292515;color:#eee2a9}
+
+.j6-assignment{position:relative;height:300px;min-width:960px;background:#0b0c0f;border:1px solid var(--line)}
+.j6-key{position:absolute;top:0;border:1px solid #080808;cursor:pointer;overflow:hidden}
+.j6-key.white{height:100%;background:linear-gradient(#f7f6f1,#cfcfc9);color:#131417;z-index:1;padding:0 7px 12px;display:flex;flex-direction:column;justify-content:flex-end}
+.j6-key.black{height:205px;background:linear-gradient(#363941,#08090b);color:#fff;z-index:2;padding:9px 5px;display:flex;flex-direction:column;justify-content:flex-start}
+.j6-key:hover,.j6-key.playing{outline:4px solid var(--accent);outline-offset:-4px}
+.j6-key .trigger-note{font-weight:950;font-size:1.05rem}
+.j6-key .assigned-chord{font-weight:950;font-size:2.1rem;margin-top:4px;overflow-wrap:anywhere}
+.j6-key .assigned-notes{font-size:.82rem;opacity:.72;margin-top:4px;line-height:1.22;overflow-wrap:anywhere}
+.j6-key.black .assigned-chord{font-size:1.5rem}
+.identifier-layout{display:grid;grid-template-columns:minmax(300px,.72fr) minmax(0,1.3fr);gap:8px}
+.identifier-status{display:grid;gap:8px}
+.identifier-step{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}
+.identifier-step span{padding:8px 3px;text-align:center;background:var(--panel2);font-size:.76rem;font-weight:900}
+.identifier-step span.done{background:var(--green);color:#0b1910}
+.identifier-step span.current{background:var(--accent2);color:#17150a}
+.candidate-list{display:grid;gap:6px}
+.candidate{display:grid;grid-template-columns:70px 1fr 70px;gap:8px;align-items:center;padding:10px;background:var(--panel2)}
+.candidate-meter{height:8px;background:#343840;overflow:hidden;margin-top:6px}
+.candidate-meter i{display:block;height:100%;background:var(--accent);width:0}
+.audio-controls{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:7px}
+.audio-led{display:inline-block;width:9px;height:9px;border-radius:50%;background:#666;margin-right:6px}
+.audio-led.on{background:var(--green);box-shadow:0 0 10px var(--green)}
+
+.play-analysis-grid{display:grid;grid-template-columns:minmax(320px,.62fr) minmax(0,1.38fr);gap:10px;min-width:0}
+.play-analysis-grid>*{min-width:0}
+.detect-result{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--panel2);padding:12px}
+.detect-result strong{font-size:1.35rem}
+.detect-progress{display:grid;grid-template-columns:repeat(12,minmax(38px,1fr));gap:3px;margin-top:8px}
+.detect-progress span{padding:8px 3px;text-align:center;background:#292d34;font-size:.72rem;font-weight:900}
+.detect-progress span.done{background:var(--green);color:#0a1710}
+.detect-progress span.current{background:var(--accent2);color:#181407}
+.mini-assignment-wrap{
+ overflow:hidden;
+ background:#090a0c;
+ padding:9px;
+ width:100%;
+ max-width:100%;
+ min-width:0;
+ position:relative;
+}
+.j6-assignment-stage{
+ position:relative;
+ width:100%;
+ overflow:hidden;
+}
+#playJ6Assignment{
+ transform-origin:top left;
+ will-change:transform;
+}
+#playJ6Assignment{position:relative;width:1190px;height:330px;background:#0b0c0f;contain:layout paint}
+.audio-input-grid{display:grid;grid-template-columns:minmax(230px,1fr) auto auto;gap:7px;align-items:end}
+.audio-meter{height:10px;background:#272b31;overflow:hidden;margin-top:8px}
+.audio-meter i{display:block;height:100%;width:0;background:var(--green)}
+#audioWave{display:block;width:100%;height:230px;background:#090a0c}
+.audio-warning{color:#f1d991;font-size:.82rem;line-height:1.45;margin-top:8px}
+
+.detector-locked{border-left:6px solid var(--green)!important;background:#14251a!important}
+.detector-locked strong{color:var(--green)}
+.output-row{display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:7px;align-items:end}
+
+
+@media(max-width:700px){
+ #playJ6Assignment .assigned-chord{font-size:1.6rem}
+ #playJ6Assignment .assigned-notes{font-size:.72rem}
+ #playJ6Assignment .trigger-note{font-size:.9rem}
+}
+
+
+header{display:block!important}
+header .connection{width:100%;min-width:0}
+header .connection .panel-head{grid-column:1/-1;padding:0 0 8px}
+#view-play>.stack{display:grid;gap:8px}
+#view-play .panel{min-width:0}
+#playJ6Assignment .assigned-chord{
+ font-size:clamp(1.25rem,2.4vw,2.1rem)!important;
+ line-height:1.02;
+ letter-spacing:-.03em;
+}
+#playJ6Assignment .assigned-notes{
+ font-size:clamp(.62rem,1vw,.86rem)!important;
+}
+
+
+body{
+ background:
+  linear-gradient(90deg,transparent 0 49.7%,rgba(255,255,255,.018) 49.7% 50.3%,transparent 50.3%),
+  #08090b;
+ color:var(--text);
+}
+main{max-width:1600px;margin:0 auto;padding:8px}
+.panel{
+ background:var(--panel);
+ border:1px solid var(--line);
+ border-radius:2px;
+ overflow:hidden;
+}
+.panel-head{
+ min-height:42px;
+ padding:8px 12px;
+ background:#0c0e12;
+ border-bottom:3px solid var(--accent);
+ align-items:center;
+}
+.panel-head h2{
+ font-size:1rem;
+ letter-spacing:.06em;
+ text-transform:uppercase;
+}
+.panel-head span{font-size:.76rem}
+button,select,input{
+ border-radius:2px!important;
+ border:1px solid #464c57!important;
+ background:#15181e!important;
+ color:var(--text)!important;
+}
+button{
+ min-height:38px;
+ font-weight:850;
+ letter-spacing:.025em;
+}
+button.primary{
+ background:var(--accent)!important;
+ color:#100b08!important;
+ border-color:#ff8855!important;
+}
+button.active{
+ background:var(--accent2)!important;
+ color:#06111a!important;
+ border-color:#72c5ff!important;
+}
+.connection{
+ grid-template-columns:repeat(4,minmax(145px,1fr))!important;
+ gap:6px!important;
+ padding:8px!important;
+ min-width:0!important;
+}
+.connection label,.field{
+ background:#101217;
+ border-left:3px solid var(--accent2);
+ padding:7px;
+}
+.connection .wide{
+ background:#0e1014;
+ padding:7px 9px;
+ border-left:3px solid var(--accent);
+}
+.set-toolbar{
+ display:grid;
+ grid-template-columns:minmax(150px,.7fr) minmax(140px,.55fr) minmax(200px,1.2fr);
+ gap:6px;
+}
+.detect-result{
+ border-left:4px solid var(--accent2);
+}
+.detect-progress span.current{
+ background:var(--accent)!important;
+ color:#140b06!important;
+}
+.detect-progress span.done{
+ background:var(--accent2)!important;
+ color:#07131c!important;
+}
+.mini-assignment-wrap{background:#06070a!important;padding:8px!important}
+#playJ6Assignment{
+ background:#090a0d!important;
+ border-top:8px solid #f1eee5;
+ border-bottom:8px solid var(--accent);
+}
+.j6-key.white{
+ background:linear-gradient(#faf8f1,#d9d7d0)!important;
+ color:#101114!important;
+ border-color:#6e7178!important;
+}
+.j6-key.black{
+ background:linear-gradient(#242831,#07080a)!important;
+ color:#fff!important;
+ border-color:#000!important;
+}
+.j6-key.white .assigned-chord{color:#101114!important}
+.j6-key.black .assigned-chord{color:#fff!important}
+.j6-key .trigger-note{
+ color:var(--accent)!important;
+ text-shadow:none!important;
+}
+.j6-key.black .trigger-note{color:#57baff!important}
+.keyboard-wrap{
+ border-top:5px solid var(--accent2);
+ border-bottom:5px solid var(--accent);
+}
+.audio-input-grid{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(120px,auto))!important;
+ gap:6px;
+}
+#audioWave{border:1px solid var(--line)}
+.warn{
+ background:#101318!important;
+ border-left:3px solid var(--accent2)!important;
+ color:#c9ced6!important;
+ padding:7px 9px!important;
+}
+#view-play>.stack{gap:7px!important}
+nav.tabs{display:flex!important;gap:5px;flex-wrap:wrap;padding:7px 8px;background:#0b0d11;border-bottom:3px solid var(--accent2);position:sticky;top:0;z-index:30}
+nav.tabs button,nav.tabs a{min-height:34px;padding:7px 11px;width:auto;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:900;border:1px solid #3f4651;background:#15181e;color:var(--text)}
+nav.tabs button.active{background:var(--accent)!important;color:#120a06!important}
+nav.tabs a{border-left:3px solid var(--accent2)}
+@media(max-width:1150px){
+ .connection{grid-template-columns:repeat(3,minmax(145px,1fr))!important}
+ .play-analysis-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:850px){
+ main{padding:5px}
+ .connection{grid-template-columns:repeat(2,minmax(135px,1fr))!important}
+ .set-toolbar{grid-template-columns:1fr 1fr}
+ .set-toolbar label:last-child{grid-column:1/-1}
+ .audio-input-grid{grid-template-columns:1fr 1fr!important}
+ 
+ .live-grid{grid-template-columns:repeat(2,1fr)!important}
+}
+@media(max-width:560px){
+ .connection{grid-template-columns:1fr!important}
+ .set-toolbar{grid-template-columns:1fr}
+ .set-toolbar label:last-child{grid-column:auto}
+ .audio-input-grid{grid-template-columns:1fr!important}
+ .live-grid{grid-template-columns:1fr!important}
+ .panel-head{padding:7px 9px}
+ .panel-body{padding:7px!important}
+ button{width:100%}
+}
+
+.octave-control{display:flex;align-items:center;gap:6px;font-size:.75rem;font-weight:900}.octave-control select{min-width:72px;height:32px}
+@media(max-width:560px){nav.tabs{position:static}nav.tabs button,nav.tabs a{flex:1 1 calc(50% - 5px)}}
+
+.compact-tools{
+ border:1px solid var(--line);
+ background:#0d0f13;
+}
+.compact-tools>summary{
+ cursor:pointer;
+ padding:9px 12px;
+ font-weight:900;
+ letter-spacing:.04em;
+ border-left:4px solid var(--accent2);
+ user-select:none;
+}
+.compact-tools[open]>summary{border-bottom:1px solid var(--line)}
+.compact-tools-grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(185px,1fr));
+ gap:6px;
+ padding:7px;
+}
+.tool-group{
+ min-width:0;
+ display:grid;
+ align-content:start;
+ gap:6px;
+ padding:8px;
+ background:#14171c;
+ border-top:3px solid var(--accent);
+}
+.tool-group>b{
+ font-size:.75rem;
+ letter-spacing:.07em;
+ color:var(--white);
+}
+.tool-group label{
+ display:grid;
+ grid-template-columns:minmax(65px,.55fr) minmax(75px,1fr) auto;
+ gap:5px;
+ align-items:center;
+ padding:0;
+ border:0;
+ background:transparent;
+ font-size:.7rem;
+}
+.tool-group select{width:100%;min-width:0}
+.tool-group input[type=range]{width:100%;min-width:0}
+.tool-group small,.tool-group span{font-size:.7rem;color:var(--muted)}
+.inline-status{display:flex;align-items:center;gap:6px}
+.history-group{grid-column:span 2}
+#history{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(115px,1fr));
+ gap:4px;
+ max-height:118px;
+ overflow:auto;
+}
+#history>div{
+ padding:5px!important;
+ border:1px solid var(--line)!important;
+ background:#0d0f13;
+ font-size:.72rem;
+}
+#view-play>.stack{
+ grid-template-columns:minmax(0,1fr);
+}
+#view-play .panel-body{padding:8px}
+.live-grid{gap:5px}
+.metric{padding:8px!important;min-height:62px}
+.detect-result{padding:8px!important}
+.detect-progress{margin-top:5px!important}
+.keyboard{height:128px!important}
+.key.black{height:76px!important}
+#audioWave{height:150px!important}
+@media(min-width:1150px){
+ #view-play>.stack{
+  grid-template-columns:minmax(310px,.38fr) minmax(0,.62fr);
+  align-items:start;
+ }
+ #view-play>.stack>section:nth-of-type(1){grid-column:1}
+ #view-play>.stack>section:nth-of-type(2){grid-column:2;grid-row:1 / span 2}
+ #view-play>.stack>section:nth-of-type(3){grid-column:1}
+ #view-play>.stack>.compact-tools{grid-column:1/-1}
+ #view-play>.stack>section:last-child{grid-column:1/-1}
+}
+@media(max-width:700px){
+ .history-group{grid-column:auto}
+ .compact-tools-grid{grid-template-columns:1fr}
+ .tool-group label{grid-template-columns:70px minmax(0,1fr) auto}
+}
+
+@media(max-width:1050px){.play-analysis-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.audio-input-grid{grid-template-columns:1fr}.detect-progress{grid-template-columns:repeat(6,1fr)}}
+
+@media(max-width:1050px){.identifier-layout{grid-template-columns:1fr}.audio-controls{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:650px){.audio-controls{grid-template-columns:repeat(2,1fr)}.identifier-step{grid-template-columns:repeat(6,1fr)}}
+
+@media(max-width:1050px){
+ header,.grid-main{grid-template-columns:1fr}.connection{min-width:0}
+ .live-grid{grid-template-columns:repeat(2,1fr)}
+ .device-guide,.reference-grid{grid-template-columns:repeat(2,1fr)}
+ .tone-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:650px){
+ main{width:100%;padding:0}.brand{align-items:start;flex-direction:column}
+ .connection{grid-template-columns:1fr}.connection .wide{grid-column:auto}
+ .controls,.chord-pad-grid{grid-template-columns:repeat(2,1fr)}
+ .set-toolbar,.tone-toolbar{grid-template-columns:1fr}
+ .device-guide,.reference-grid{grid-template-columns:1fr}
+ .tone-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+*{box-sizing:border-box}
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body{min-width:0}
+.unofficial-notice{
+ margin:0 0 6px;
+ padding:5px 8px;
+ border-left:3px solid var(--accent2);
+ background:#0d1014;
+ color:var(--muted);
+ font-size:.68rem;
+ line-height:1.45;
+ letter-spacing:.01em;
+}
+main,header,.view,.panel,.panel-body,.stack,.connection,
+.set-toolbar,.live-grid,.audio-input-grid,.compact-tools-grid,
+.manual-grid,.keyboard-wrap,.mini-assignment-wrap{
+ min-width:0;
+ max-width:100%;
+}
+.panel{width:100%}
+.panel-head{
+ display:flex;
+ flex-wrap:wrap;
+ justify-content:space-between;
+ gap:6px;
+}
+.panel-head h2,.panel-head span,.panel-head a{
+ min-width:0;
+ overflow-wrap:anywhere;
+}
+button,select,input,label{
+ max-width:100%;
+ min-width:0;
+}
+button,select,input{
+ white-space:normal;
+ overflow-wrap:anywhere;
+}
+.connection{
+ display:grid!important;
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),1fr))!important;
+}
+.connection .wide{grid-column:span 2}
+.set-toolbar{
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))!important;
+}
+.live-grid{
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr))!important;
+}
+.audio-input-grid{
+ display:grid!important;
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr))!important;
+}
+.manual-grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+ gap:7px;
+}
+.manual-card{
+ min-width:0;
+ padding:10px;
+ background:#14171c;
+ border-top:3px solid var(--accent2);
+}
+.manual-card h3{margin:0 0 5px;font-size:.9rem}
+.manual-card p{margin:0;line-height:1.55;overflow-wrap:anywhere}
+.keyboard-wrap,.mini-assignment-wrap{
+ width:100%;
+ overflow:hidden!important;
+}
+.keyboard{
+ max-width:none;
+ transform-origin:left top;
+}
+#audioWave{
+ display:block;
+ width:100%!important;
+ max-width:100%;
+ min-width:0;
+ height:clamp(110px,18vw,180px)!important;
+}
+.table-wrap{
+ width:100%;
+ max-width:100%;
+ overflow:auto;
+}
+table{min-width:900px}
+nav.tabs{
+ overflow-x:auto;
+ flex-wrap:nowrap!important;
+ scrollbar-width:thin;
+}
+nav.tabs button,nav.tabs a{
+ flex:0 0 auto!important;
+ white-space:nowrap;
+}
+@media(min-width:1180px){
+ #view-play>.stack{
+  display:grid;
+  grid-template-columns:minmax(300px,.36fr) minmax(0,.64fr);
+  gap:7px;
+ }
+ #view-play>.stack>section:nth-of-type(1){grid-column:1}
+ #view-play>.stack>section:nth-of-type(2){grid-column:2;grid-row:1 / span 2}
+ #view-play>.stack>section:nth-of-type(3){grid-column:1}
+ #view-play>.stack>.compact-tools,
+ #view-play>.stack>section:last-child{grid-column:1/-1}
+}
+@media(max-width:1179px){
+ #view-play>.stack{display:grid;grid-template-columns:1fr!important}
+ #view-play>.stack>*{grid-column:1!important;grid-row:auto!important}
+}
+@media(max-width:720px){
+ main{padding:4px}
+ header{padding:4px}
+ .connection .wide{grid-column:1/-1}
+ .panel-head{align-items:flex-start}
+ .panel-head h2{font-size:.88rem}
+ .compact-tools-grid{grid-template-columns:1fr!important}
+ .history-group{grid-column:auto!important}
+ .tool-group label{grid-template-columns:68px minmax(0,1fr) auto}
+ .detect-result{grid-template-columns:1fr!important}
+ .toggle-row{flex-wrap:wrap}
+ .toggle-row button{flex:1 1 130px}
+}
+@media(max-width:430px){
+ .connection{grid-template-columns:1fr!important}
+ .connection .wide{grid-column:1}
+ .set-toolbar,.live-grid,.audio-input-grid,.manual-grid{grid-template-columns:1fr!important}
+ .tool-group label{grid-template-columns:1fr}
+ .tool-group label span{justify-self:start}
+ nav.tabs button,nav.tabs a{font-size:.7rem;padding:6px 8px}
+}
+
+
+/* v20: display-only MIDI visualization and responsive full keyboards */
+#view-play>.stack{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr)!important;
+ gap:7px!important;
+}
+#view-play>.stack>*{
+ grid-column:1!important;
+ grid-row:auto!important;
+ min-width:0;
+}
+.midi-keyboard-wrap,
+.j6-list-wrap{
+ overflow:hidden!important;
+ width:100%;
+ padding:7px!important;
+}
+.midi-keyboard-stage,
+.j6-list-stage{
+ position:relative;
+ width:100%;
+ overflow:hidden;
+ min-width:0;
+}
+#keyboard,
+#j6Assignment{
+ transform-origin:top left;
+ will-change:transform;
+}
+#keyboard .key.visual-only{
+ cursor:default!important;
+ pointer-events:none!important;
+ user-select:none;
+}
+.j6-key{
+ cursor:default!important;
+ pointer-events:none!important;
+}
+.j6-key:hover{
+ outline:none!important;
+}
+.j6-key .assigned-notes{
+ display:flex;
+ flex-wrap:wrap;
+ align-items:center;
+ justify-content:center;
+ gap:2px;
+ overflow:visible;
+}
+.j6-key.black .assigned-notes{
+ justify-content:flex-start;
+}
+.assigned-note{
+ display:inline-block;
+ border-radius:2px;
+ padding:1px 3px;
+ transition:background .08s,color .08s,outline .08s;
+}
+.note-separator{
+ opacity:.45;
+ font-size:.72em;
+}
+.assigned-note.midi-pc{
+ color:#07131c!important;
+ background:var(--accent2);
+ font-weight:950;
+}
+.assigned-note.midi-exact{
+ color:#160b05!important;
+ background:var(--accent);
+ outline:2px solid #fff;
+ font-weight:950;
+}
+.j6-key.midi-partial{
+ box-shadow:inset 0 0 0 4px rgba(57,169,255,.85);
+}
+.j6-key.midi-match{
+ box-shadow:inset 0 0 0 6px var(--accent),0 0 16px rgba(255,106,42,.7);
+}
+#keyboard .key.chord-tone{
+ box-shadow:inset 0 -16px 0 var(--accent2);
+}
+#keyboard .key.active{
+ box-shadow:inset 0 -28px 0 var(--accent),0 0 0 3px var(--accent)!important;
+}
+#keyboard .key.black.chord-tone{
+ box-shadow:inset 0 -12px 0 var(--accent2);
+}
+#keyboard .key.black.active{
+ box-shadow:inset 0 -22px 0 var(--accent),0 0 0 3px var(--accent)!important;
+}
+#keyboard .key-label{
+ max-width:100%;
+ overflow:hidden;
+ text-overflow:clip;
+}
+.detect-result{
+ grid-template-columns:minmax(0,1fr) auto!important;
+}
+.detect-result strong{
+ overflow-wrap:anywhere;
+}
+.compact-tools-grid{
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))!important;
+}
+@media(max-width:720px){
+ #keyboard .key-label small{display:none}
+ #keyboard .key-label b{font-size:.72rem}
+ .detect-result{grid-template-columns:1fr!important}
+ .detect-result .toggle-row{justify-content:stretch}
+ .detect-result .toggle-row button{width:100%}
+}
+@media(max-width:430px){
+ #keyboard .key-label{display:none}
+ .j6-key .assigned-notes{font-size:.66rem!important}
+ .j6-key .assigned-chord{overflow-wrap:anywhere}
+}
+
+
+/* v21 audio routing */
+.audio-panel{grid-column:1/-1!important}
+.audio-route-grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));
+ gap:6px;
+}
+.audio-route-grid label{
+ display:grid;
+ grid-template-columns:1fr;
+ gap:4px;
+ min-width:0;
+ padding:7px;
+ background:#101318;
+ border-left:3px solid var(--accent2);
+ font-size:.72rem;
+ font-weight:850;
+}
+.audio-route-grid select{
+ width:100%;
+ min-width:0;
+ text-overflow:ellipsis;
+}
+.audio-route-grid button{
+ width:100%;
+ min-width:0;
+}
+.audio-route-status{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));
+ gap:5px;
+ margin-top:7px;
+}
+.audio-route-status span{
+ min-width:0;
+ padding:6px 8px;
+ background:#0d1015;
+ border:1px solid var(--line);
+ font-size:.72rem;
+ font-weight:800;
+ overflow-wrap:anywhere;
+}
+.audio-level-field{
+ display:grid!important;
+ grid-template-columns:auto minmax(100px,1fr) auto!important;
+ gap:8px!important;
+ align-items:center;
+}
+.audio-route-note{
+ margin-top:7px;
+ padding:7px 9px;
+ background:#101318;
+ border-left:3px solid var(--accent);
+ color:#cbd0d8;
+ font-size:.74rem;
+ line-height:1.45;
+ overflow-wrap:anywhere;
+}
+#audioWave{
+ width:100%!important;
+ min-width:0;
+ height:clamp(120px,18vw,200px)!important;
+}
+@media(max-width:540px){
+ .audio-route-grid,
+ .audio-route-status{
+  grid-template-columns:1fr;
+ }
+ .audio-level-field{
+  grid-template-columns:1fr!important;
+ }
+}
+
+
+/* v23: selected J-6 chord tone guide */
+.assignment-guide-bar{
+ display:grid;
+ grid-template-columns:auto minmax(0,1fr);
+ align-items:center;
+ gap:8px 14px;
+ margin:0 0 6px;
+ padding:6px 8px;
+ background:#0e1116;
+ border-left:3px solid var(--accent2);
+ font-size:.74rem;
+}
+.assignment-guide-bar span{
+ display:inline-flex;
+ align-items:center;
+ gap:6px;
+ color:var(--muted);
+}
+.assignment-guide-info{
+ display:flex;
+ align-items:center;
+ justify-content:flex-end;
+ flex-wrap:wrap;
+ gap:5px;
+ min-width:0;
+}
+.assignment-guide-info strong{
+ color:var(--text);
+ overflow-wrap:anywhere;
+ font-size:1rem;
+ margin-right:3px;
+}
+.guide-note-chip{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ min-width:34px;
+ padding:4px 7px;
+ border:1px solid rgba(96,190,255,.82);
+ background:rgba(57,169,255,.2);
+ color:#dff2ff;
+ font-weight:950;
+ font-size:.82rem;
+ border-radius:3px;
+}
+.assignment-guide-info small{
+ color:var(--muted);
+ margin-left:3px;
+}
+.guide-swatch{
+ width:18px;
+ height:10px;
+ display:inline-block;
+ border:1px solid rgba(96,190,255,.72);
+ background:rgba(57,169,255,.18);
+}
+#keyboard .key.assignment-guide.white{
+ background:
+  linear-gradient(rgba(57,169,255,.15),rgba(57,169,255,.15)),
+  linear-gradient(#faf8f1,#d9d7d0)!important;
+}
+#keyboard .key.assignment-guide.black{
+ background:
+  linear-gradient(rgba(57,169,255,.23),rgba(57,169,255,.23)),
+  linear-gradient(#242831,#07080a)!important;
+}
+#keyboard .key.assignment-guide{
+ outline:3px solid var(--accent2);
+ outline-offset:-3px;
+ filter:saturate(1.2);
+}
+#keyboard .key.assignment-guide.chord-tone{
+ box-shadow:inset 0 -16px 0 var(--accent2);
+}
+#keyboard .key.assignment-guide.active{
+ box-shadow:inset 0 -28px 0 var(--accent),0 0 0 3px var(--accent)!important;
+}
+#keyboard .key.black.assignment-guide.chord-tone{
+ box-shadow:inset 0 -12px 0 var(--accent2);
+}
+#keyboard .key.black.assignment-guide.active{
+ box-shadow:inset 0 -22px 0 var(--accent),0 0 0 3px var(--accent)!important;
+}
+@media(max-width:540px){
+ .assignment-guide-bar{grid-template-columns:1fr;align-items:flex-start}
+ .assignment-guide-info{justify-content:flex-start;width:100%}
+}
+
+
+/* v25: mouse-selectable J-6 assignment keys */
+.j6-key{
+ pointer-events:auto!important;
+ cursor:pointer!important;
+ touch-action:manipulation;
+}
+.j6-key:hover{
+ outline:3px solid rgba(57,169,255,.82)!important;
+ outline-offset:-3px!important;
+}
+.j6-key.manual-selected{
+ outline:5px solid var(--accent)!important;
+ outline-offset:-5px!important;
+ box-shadow:
+  inset 0 0 0 2px rgba(255,255,255,.75),
+  0 0 14px rgba(255,106,42,.55)!important;
+}
+.j6-key.manual-selected .assigned-chord{
+ text-decoration:underline;
+ text-decoration-thickness:2px;
+ text-underline-offset:3px;
+}
+
+/* v27: clearer assignment labels and harmony summary */
+.j6-key .assigned-chord{
+ display:block;
+ width:100%;
+ min-width:0;
+ white-space:nowrap!important;
+ overflow:hidden!important;
+ text-overflow:clip;
+ overflow-wrap:normal!important;
+ word-break:normal!important;
+ line-height:1.05;
+ max-width:100%;
+}
+.j6-key.black .assigned-chord{
+ font-size:clamp(1.05rem,1.55vw,1.5rem)!important;
+ letter-spacing:-.035em;
+}
+.j6-key.octave-c::before{
+ content:'OCTAVE C';
+ position:absolute;
+ top:8px;
+ right:7px;
+ color:var(--accent);
+ font-size:.58rem;
+ font-weight:950;
+ letter-spacing:.05em;
+}
+.j6-key.octave-c .trigger-note{
+ color:var(--accent)!important;
+}
+.j6-key .assigned-notes{
+ max-width:100%;
+ overflow:hidden!important;
+}
+.live-grid{
+ grid-template-columns:minmax(210px,2fr) repeat(3,minmax(88px,1fr))!important;
+ align-items:stretch;
+}
+.metric{
+ display:flex;
+ flex-direction:column;
+ justify-content:center;
+ gap:2px;
+}
+.metric small{
+ margin-bottom:2px;
+ letter-spacing:.06em;
+}
+.metric-chord{
+ border-left:4px solid var(--accent);
+}
+.metric-chord strong{
+ font-size:clamp(1.45rem,2.6vw,2.3rem)!important;
+ white-space:nowrap!important;
+ overflow:visible!important;
+ word-break:normal!important;
+ line-height:1.05!important;
+}
+.metric-root,.metric-bass,.metric-velocity{
+ align-items:center;
+ text-align:center;
+ border-top:3px solid var(--accent2);
+}
+.metric-root strong,.metric-bass strong,.metric-velocity strong{
+ font-size:clamp(1.35rem,2.2vw,2rem);
+ overflow:visible;
+}
+.metric.notes{
+ align-items:flex-start;
+ border-left:4px solid var(--accent2);
+}
+.metric.notes{
+ grid-column:span 1;
+}
+.metric-progression{
+ grid-column:span 3;
+}
+.metric.notes,.metric-progression{
+ align-items:flex-start;
+}
+.metric-progression{
+ border-left:4px solid var(--accent);
+}
+.metric-progression strong{
+ width:100%;
+ white-space:normal;
+ overflow:visible;
+ font-size:clamp(1rem,1.5vw,1.3rem);
+ line-height:1.35;
+ color:#ffd1bd;
+ overflow-wrap:anywhere;
+}
+#liveProgressionInsight{
+ display:block;
+ margin-top:5px;
+ color:var(--accent2);
+ font-size:.72rem;
+ font-weight:850;
+ line-height:1.4;
+ overflow-wrap:anywhere;
+}
+.manual-set-control{
+ display:grid;
+ grid-template-columns:auto 3.2rem;
+ align-items:center;
+ gap:6px;
+ color:var(--muted);
+ font-size:.72rem;
+ font-weight:900;
+ white-space:nowrap;
+}
+#playManualSet{
+ width:3.2rem;
+ padding:8px 5px;
+ text-align:center;
+ font:950 1.05rem/1 ui-monospace,SFMono-Regular,Consolas,monospace;
+ letter-spacing:.12em;
+ color:var(--text);
+ background:#090b0e;
+ border:2px solid var(--accent2);
+}
+#playManualSet:invalid{border-color:var(--red)}
+#applyPlayManualSet{width:auto}
+.audio-visual-grid{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:7px;
+ margin-top:7px;
+}
+.audio-visual-panel{
+ min-width:0;
+ background:#090a0c;
+ border:1px solid var(--line);
+}
+.audio-visual-panel>b{
+ display:block;
+ padding:5px 8px;
+ border-bottom:1px solid var(--line);
+ color:var(--muted);
+ font-size:.68rem;
+ letter-spacing:.1em;
+}
+.audio-visual-panel>b span{
+ float:right;
+ color:var(--accent2);
+ font-size:.62rem;
+}
+#audioWave,#audioFFT{
+ display:block;
+ width:100%!important;
+ min-width:0;
+ height:clamp(120px,14vw,190px)!important;
+ background:#090a0c;
+ border:0!important;
+}
+.midi-restart-note{
+ grid-column:1/-1!important;
+ width:100%;
+ padding:8px 10px;
+ border-left:4px solid var(--accent);
+ background:#21160f;
+ color:#ffd3bd;
+ font-size:.78rem;
+ font-weight:850;
+ line-height:1.45;
+ white-space:nowrap;
+}
+.device-refresh-attention{
+ position:relative;
+ z-index:1;
+ color:#08131b!important;
+ background:var(--accent2)!important;
+ border-color:#a9ddff!important;
+ animation:deviceRefreshPulse 1.15s ease-in-out infinite;
+}
+.device-refresh-attention::after{
+ content:'最初に押す';
+ position:absolute;
+ right:5px;
+ top:-9px;
+ padding:2px 5px;
+ background:var(--accent);
+ color:#160a04;
+ font-size:.58rem;
+ font-weight:950;
+ letter-spacing:.04em;
+}
+@keyframes deviceRefreshPulse{
+ 0%,100%{box-shadow:0 0 0 0 rgba(57,169,255,.25)}
+ 50%{box-shadow:0 0 0 5px rgba(57,169,255,.2),0 0 20px rgba(57,169,255,.78)}
+}
+@media(prefers-reduced-motion:reduce){
+ .device-refresh-attention{animation:none;box-shadow:0 0 0 4px rgba(57,169,255,.28)}
+}
+@media(max-width:760px){
+ .midi-restart-note{white-space:normal}
+ .live-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .metric-chord{grid-column:1/-1}
+ .metric.notes,.metric-progression{grid-column:1/-1}
+}
+@media(max-width:430px){
+ .live-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .metric-velocity{grid-column:1/-1}
+ .metric-chord strong{font-size:1.35rem!important}
+ .audio-visual-grid{grid-template-columns:1fr}
+ #audioWave,#audioFFT{height:140px!important}
+}
+
+</style>
+</head>
+<body>
+<main>
+<p class="unofficial-notice">本Webサイトは非公式であり、Rolandの公式情報をもとに有志が制作したサイトです。Roland株式会社とは関係ありません。</p>
+<header>
+  <section class="connection panel">
+    <div class="panel-head wide"><h2>MIDI設定</h2></div>
+    <button id="enableMidi" class="primary device-refresh-attention">MIDI ON</button>
+    <button id="reconnectMidi">RECONNECT</button>
+    <button id="resetMidi">MIDI RESET</button>
+    <button id="panic" disabled>ALL NOTES OFF</button>
+    <label>MIDI IN<select id="midiIn" disabled><option value="all">All MIDI Inputs</option></select></label>
+    <label>MIDI OUT<select id="midiOut" disabled><option>未接続</option></select></label>
+    <label>OUT CH<select id="playChannel"></select></label>
+    <label>IN CH
+      <select id="inputChannel">
+        <option value="auto">Auto Detect</option>
+        <option value="all">All Channels</option>
+      </select>
+    </label>
+    <label>PATTERN CH<select id="pcChannel"></select></label>
+    <div class="wide"><span id="statusDot" class="status-dot"></span><strong id="statusText">Web MIDIは無効です</strong></div>
+    <div class="wide"><span style="color:var(--muted);font-weight:800">LAST IN</span><strong id="lastMidiInput">—</strong></div>
+    <div class="wide"><span style="color:var(--muted);font-weight:800">DETECTED CH</span><strong id="detectedMidiChannel">AUTO</strong></div>
+    <div class="wide"><span style="color:var(--muted);font-weight:800">STATUS</span><strong id="midiWatchdogStatus">OFF</strong></div>
+    <div class="wide midi-restart-note">認識がうまくされない場合はJ-6の電源を再投入してください。</div>
+  </section>
+</header>
+
+<nav class="tabs">
+  <button class="active" data-view="play">PLAY</button>
+  <button data-view="chords">コードセット一覧</button>
+  <button data-view="tones">公式マニュアル</button>
+  <button data-view="patterns">パターン</button>
+  <button data-view="monitor">MIDIログ</button>
+  <button data-view="guide">ガイド</button>
+  <a href="https://static.roland.com/manuals/J-6_manual_v102/jpn/28318652.html" target="_blank" rel="noopener">コード一覧</a>
+  <a href="https://static.roland.com/manuals/J-6_manual_v102/jpn/28318656.html" target="_blank" rel="noopener">フレーズ一覧</a>
+  <a href="https://www.roland.com/jp/products/j-6/" target="_blank" rel="noopener">J-6公式</a>
+</nav>
+
+<div class="workspace">
+<section id="view-play" class="view active">
+
+  <div class="app-state" hidden>
+    <span id="officialSetStatus"></span>
+    <span id="officialSetDetail"></span>
+    <select id="chordSetSelect"></select>
+    <select id="transposeSelect"></select>
+    <input id="chordSearch" value="">
+  </div>
+
+  <div class="stack">
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>J-6鍵盤割り当て</h2>
+        <span id="playSetConfidence">未判定</span>
+      </div>
+      <div class="panel-body">
+        <div class="detect-result">
+          <div>
+            <small style="color:var(--muted);font-weight:800">自動判定コードセット</small><br>
+            <strong id="playDetectedSet">—</strong>
+          </div>
+          <div class="toggle-row">
+            <label class="manual-set-control">手動設定
+              <input id="playManualSet" type="text" inputmode="numeric" pattern="[0-9]{2}" maxlength="2" value="01" aria-label="コードセット番号（2桁）">
+            </label>
+            <button id="applyPlayManualSet" class="primary">SET</button>
+            <button id="playDetectConfirm" hidden>確定</button>
+            <button id="playDetectReset">再判定</button>
+          </div>
+        </div>
+        <div id="playDetectProgress" class="detect-progress"></div>
+        <div id="playDetectHint" class="warn" style="margin-top:8px">Cを押したまま判定 → 離して次のキー</div>
+        <div class="mini-assignment-wrap" style="margin-top:10px">
+          <div id="playJ6AssignmentStage" class="j6-assignment-stage">
+            <div id="playJ6Assignment"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>構成音</h2>
+        <label class="octave-control">OCTAVE
+          <select id="octave">
+            <option value="-3">-3</option><option value="-2">-2</option><option value="-1">-1</option>
+            <option value="0" selected>0</option>
+            <option value="1">+1</option><option value="2">+2</option><option value="3">+3</option>
+          </select>
+        </label>
+      </div>
+      <div class="panel-body">
+        <div class="live-grid" style="margin-bottom:8px">
+          <div class="metric metric-chord"><small>コード</small><strong id="liveChord">—</strong></div>
+          <div class="metric metric-root"><small>ルート</small><strong id="liveRoot">—</strong></div>
+          <div class="metric metric-bass"><small>ベース</small><strong id="liveBass">—</strong></div>
+          <div class="metric metric-velocity"><small>ベロシティ</small><strong id="liveVelocity">—</strong></div>
+          <div class="metric notes"><small>受信したMIDI構成音</small><strong id="liveNotes">—</strong></div>
+          <div class="metric metric-progression"><small>コード進行</small><strong id="liveProgression">—</strong><span id="liveProgressionInsight"></span></div>
+        </div>
+        <input id="noteLength" type="hidden" value="0">
+        <div class="assignment-guide-bar">
+          <span><i class="guide-swatch"></i>選択中コードの構成音</span>
+          <div id="assignmentGuideLabel" class="assignment-guide-info"><strong>—</strong></div>
+        </div>
+        <div class="keyboard-wrap midi-keyboard-wrap">
+          <div id="midiKeyboardStage" class="midi-keyboard-stage">
+            <div id="keyboard" class="keyboard"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <details class="compact-tools" hidden>
+      <summary>補助設定</summary>
+      <div class="compact-tools-grid">
+        <div class="tool-group">
+          <b>J-6 MIDI出力</b>
+          <label>VELOCITY
+            <input id="velocity" type="range" min="1" max="127" value="100">
+            <span id="velocityValue">100</span>
+          </label>
+          <button id="holdButton">HOLD OFF</button>
+        </div>
+
+        <div class="tool-group history-group">
+          <b>直前のコード</b>
+          <div id="history">—</div>
+        </div>
+      </div>
+    </details>
+
+
+<section class="panel audio-panel">
+        <div class="panel-head">
+          <h2>AUDIO INPUT / BYPASS</h2>
+          <span id="usbAudioStatus">未接続</span>
+        </div>
+        <div class="panel-body">
+          <div class="audio-route-grid">
+            <label>SOURCE
+              <select id="audioInputMode">
+                <option value="j6usb">J-6 USB：本体内蔵音源</option>
+                <option value="analog">ANALOG：MIX OUT → AUDIO I/F</option>
+              </select>
+            </label>
+
+            <label>INPUT DEVICE
+              <select id="audioInputDevice">
+                <option value="">入力機器を確認</option>
+              </select>
+            </label>
+
+            <label>PC OUTPUT
+              <select id="audioOutputDevice">
+                <option value="default">OS DEFAULT</option>
+              </select>
+            </label>
+
+            <button id="refreshAudioInputs" class="device-refresh-attention">DEVICE REFRESH</button>
+            <button id="enableAudioInput" class="primary">CONNECT</button>
+            <button id="monitorAudio">BYPASS ON</button>
+            <button id="stopAudioInput">STOP</button>
+          </div>
+
+          <div class="audio-route-status">
+            <span id="audioInputStatus">INPUT：—</span>
+            <span id="audioTrackStatus">FORMAT：—</span>
+            <span id="audioSignalStatus">NO SIGNAL</span>
+            <span id="audioOutputStatus">OUTPUT：OS DEFAULT</span>
+          </div>
+
+          <label class="field audio-level-field">BYPASS LEVEL
+            <input id="monitorLevel" type="range" min="0" max="2" value="0.8" step="0.01">
+            <b id="monitorLevelValue">80%</b>
+          </label>
+
+          <div class="audio-meter"><i id="audioInputMeter"></i></div>
+          <div class="audio-visual-grid">
+            <div class="audio-visual-panel">
+              <b>WAVEFORM <span>VERTICAL ×3</span></b>
+              <canvas id="audioWave" width="600" height="230"></canvas>
+            </div>
+            <div class="audio-visual-panel">
+              <b>FFT / SPECTRUM</b>
+              <canvas id="audioFFT" width="600" height="230"></canvas>
+            </div>
+          </div>
+
+          <div id="audioRouteNote" class="audio-route-note">
+            OSによってJ-6が「USB Audio」「Digital Input」または別名で表示されます。
+            USB候補を選択してCONNECTしてください。
+          </div>
+
+          <audio id="audioBypassPlayer" autoplay playsinline hidden></audio>
+        </div>
+      </section>
+  </div>
+</section>
+
+<section id="view-chords" class="view">
+  <section class="panel">
+    <div class="panel-head"><h2>使用中のコードセットを特定</h2><span>J-6でCから半音ずつコードを鳴らします</span></div>
+    <div class="panel-body identifier-layout">
+      <div class="identifier-status">
+        <button id="startIdentify" class="primary">判定を開始</button>
+        <button id="captureIdentify">現在のコードを登録</button>
+        <button id="resetIdentify">リセット</button>
+        <div id="identifyInstruction" class="warn">開始後、J-6のCキーから順番にコードを鳴らしてください。入力が安定すると自動登録します。</div>
+        <div id="identifierSteps" class="identifier-step"></div>
+      </div>
+      <div>
+        <div class="panel-head" style="padding:0 0 8px;border:0"><h2>候補</h2><span id="identifyCount">0 / 12 keys</span></div>
+        <div id="candidateList" class="candidate-list"><div class="warn">まだ判定データがありません。</div></div>
+      </div>
+    </div>
+  </section>
+  <section class="panel" style="margin-top:8px">
+    <div class="panel-head"><h2>J-6鍵盤へのコード割り当て</h2><span>MIDI入力構成音を表示</span></div>
+    <div class="keyboard-wrap j6-list-wrap"><div id="j6AssignmentStage" class="j6-list-stage"><div id="j6Assignment" class="j6-assignment"></div></div></div>
+  </section>
+  <section class="panel" style="margin-top:8px">
+    <div class="panel-head"><h2>収録セット一覧</h2><span>選択すると上に表示</span></div>
+    <div class="table-wrap"><table><thead><tr><th>No.</th><th>Genre</th><th>C</th><th>C#</th><th>D</th><th>D#</th><th>E</th><th>F</th><th>F#</th><th>G</th><th>G#</th><th>A</th><th>A#</th><th>B</th></tr></thead><tbody id="chordTable"></tbody></table></div>
+  </section>
+</section>
+
+<section id="view-tones" class="view">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>公式マニュアル情報</h2>
+      <a href="https://static.roland.com/assets/media/pdf/J-6_jpn02_W.pdf" target="_blank" rel="noopener">PDFを開く</a>
+    </div>
+    <div class="panel-body manual-grid">
+      <article class="manual-card">
+        <h3>音色選択</h3>
+        <p><b>SOUND</b>を押して音色選択モードに入り、ステップ<b>1～8</b>で音色を選択します。TEMPO/VALUEでも変更できます。</p>
+      </article>
+      <article class="manual-card">
+        <h3>バンク選択</h3>
+        <p><b>SOUNDを押しながらステップ1～8</b>を押します。8バンク×8音色で、プリセット・パッチは64音色です。</p>
+      </article>
+      <article class="manual-card">
+        <h3>パターン</h3>
+        <p>ユーザー・パターンは64個です。MIDI Program Change 0～63でPattern 1～64を扱います。</p>
+      </article>
+      <article class="manual-card">
+        <h3>エフェクト</h3>
+        <p>内蔵エフェクトは<b>DELAY</b>と<b>REVERB</b>です。</p>
+      </article>
+      <article class="manual-card">
+        <h3>USB</h3>
+        <p>USB Type-C端子は<b>USB Audio</b>と<b>USB MIDI</b>に対応します。</p>
+      </article>
+      <article class="manual-card">
+        <h3>MIDI受信</h3>
+        <p>Note On/Off、CC64 Hold、Program Change、Clock、Start、Stopを扱います。公開MIDI仕様では音色つまみ位置の読み出しには対応しません。</p>
+      </article>
+    </div>
+  </section>
+</section>
+
+<section id="view-patterns" class="view">
+  <section class="panel">
+    <div class="panel-head"><h2>パターン Program Change</h2><span>PC 0–63 → Pattern 1–64</span></div>
+    <div class="panel-body">
+      <div class="controls">
+        <label class="field">パターン<select id="patternSelect"></select></label>
+        <div class="field"><span>送信</span><button id="sendPattern" class="primary">PROGRAM CHANGE送信</button></div>
+        <div class="field"><span>Transport</span><div class="toggle-row"><button id="sendStart">START</button><button id="sendStop">STOP</button></div></div>
+        <div class="field"><span>Clock</span><button id="clockState" disabled>外部Clock未送信</button></div>
+      </div>
+      <p class="warn">J-6本体のRX Program ChangeをONにし、Pc.Chとこの画面の「パターンPCチャンネル」を一致させてください。</p>
+    </div>
+  </section>
+</section>
+
+<section id="view-monitor" class="view">
+  <section class="panel">
+    <div class="panel-head"><h2>MIDI MONITOR</h2><button id="clearLog">CLEAR</button></div>
+    <div id="monitor" class="monitor"></div>
+  </section>
+</section>
+
+<section id="view-guide" class="view">
+  <section class="panel">
+    <div class="panel-head"><h2>J-6 USB MIDI セットアップ</h2></div>
+    <div class="panel-body device-guide">
+      <div class="guide-card"><b>1. USB接続</b><p>USBハブを避け、データ通信対応ケーブルでJ-6とPCを直接接続します。</p></div>
+      <div class="guide-card"><b>2. AIRA LINK</b><p>通常のPC接続ではA.LnKをOFFに設定し、設定後にJ-6を再起動します。</p></div>
+      <div class="guide-card"><b>3. MIDI Channel</b><p>受信チャンネルはAuto DetectでJ-6のNote Onから自動検出します。送信チャンネルはJ-6のSynth Channelに合わせます。</p></div>
+      <div class="guide-card"><b>4. ブラウザ</b><p>Chrome系ブラウザでMIDIを有効化し、入力・出力の両方にJ-6を選択します。</p></div>
+    </div>
+  </section>
+  <section class="panel" style="margin-top:8px">
+    <div class="panel-head"><h2>仕様メモ</h2></div>
+    <div class="panel-body reference-grid">
+      <div class="reference-card"><h3>演奏MIDI</h3><p>Note On/Offは0–127。Velocity対応。AftertouchとPitch Bendは非対応です。</p></div>
+      <div class="reference-card"><h3>Hold</h3><p>J-6は受信側でCC64 Holdに対応します。</p></div>
+      <div class="reference-card"><h3>Pattern PC</h3><p>Program Change 0–63を送受信し、専用チャンネル初期値は16です。</p></div>
+      <div class="reference-card"><h3>Clock / Transport</h3><p>MIDI Clock、Start、Stopを送受信します。Continueは非対応です。</p></div>
+      <div class="reference-card"><h3>音色選択</h3><p>SOUNDを押し、ステップ1–8で音色、SOUNDを押しながらステップ1–8でバンクを選択します。</p></div>
+      <div class="reference-card"><h3>公式資料</h3><p><a href="https://static.roland.com/manuals/J-6_manual_v102/jpn/index.html" target="_blank" rel="noopener">J-6 取扱説明書 Version 1.02</a></p></div>
+    </div>
+  </section>
+</section>
+</div>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const noteNames=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const flatNames=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+let midiAccess=null,midiInput=null,midiOutput=null,hold=false;
+const midiInputListeners=new Map();
+let midiRefreshTimer=null,lastMidiSignature='',lastMidiSignatureAt=0;
+let midiWatchdogTimer=null,midiLastMessageAt=0,midiReconnectBusy=false,midiReconnectAttempts=0;
+const midiReconnectDelays=[0,250,700,1500,3000];
+const midiChannelDetector={
+  detected:null,
+  counts:Array(16).fill(0),
+  firstSeen:Array(16).fill(0),
+  lastSeen:Array(16).fill(0),
+  startedAt:0,
+  lockThreshold:2
+};
+let audioContext=null;
+let inputStream=null,inputSource=null,inputAnalyser=null,inputAnalysisSink=null;
+let inputMonitorGain=null,inputBypassDestination=null,inputMonitorEnabled=false,inputWaveFrame=null;
+let audioInputCatalog=[],audioOutputCatalog=[],lastAudioSignalAt=0;
+let fftRenderDisabled=false,fftRenderWarningShown=false;
+const activeNotes=new Map(), pointerNotes=new Map(), chordHistory=[];
+const identifier={running:false,index:0,captured:[],lastSignature:'',timer:null};
+const playDetector={index:0,captured:[],lastSignature:'',lastCaptureAt:0,timer:null,bestSet:1,confidence:0,locked:false,secondScore:0,armed:true};
+const midiBurst={notes:new Map(),timer:null,lastAt:0};
+const phraseHarmony={notes:new Map(),timer:null,silenceTimer:null,windowMs:1400,settleMs:320,silenceMs:8000};
+let officialDataReady=false;
+const logEntries=[];
+
+// Roland J-6 Version 1.02 chord-set table embedded in this file.
+// No network access is required at startup.
+const chordSets=[{"n":1,"g":"Pop","c":["Cadd9","C#M9/C","Dm7","D#M7","Cadd9/E","FM9","Dadd9/F#","Em7/G","Fm6/G#","FM/A","Gm/A#","G/B"],"v":["E4 D4 G3 C3","F4 D#4 C4 C#3","C4 A3 F4 D3","G4 D4 A#3 D#3","G4 D4 C4 E3","G4 E4 A3 F2","E4 D4 A3 F#2","G4 E4 D4 G2","F4 D4 C4 G#2","F4 C4 A3 A2","G4 D4 A#3 A#2","G4 D4 B3 B2"]},{"n":2,"g":"Pop","c":["CM9","C#dim7","Dm9","D#dim7","Em7","FM9","F#m7b5","F/A","G#dim7","Am9","C/A#","Bm7b5"],"v":["D4 B3 E3 C3","E4 A#3 G3 C#3","E4 C4 F3 D3","F#4 C4 A3 D#3","G4 D4 B3 E3","G4 E4 A3 F3","E4 C4 A3 F#3","F4 C4 A3 G2","F4 D4 B3 G#2","G4 C4 B3 A2","E4 C4 G3 A#2","F4 D4 A3 B2"]},{"n":3,"g":"Jazz","c":["D7sus2/C","C#7#9","Dm9","D7#9","E7#9","FM9","F#7#9","G7(13)","G#7(13)","Am7(11)","A#9","Bm7(11)"],"v":["D4 A3 E3 C3","E4 B3 F3 C#3","E4 C4 F3 D3","F#4 C#4 G3 D#3","G4 D4 G#3 E3","G4 E4 A3 F3","A4 E4 A#3 F#3","E4 B3 F3 G2","F4 C4 F#3 G#2","D4 C4 G3 A2","D4 C4 G#3 A#2","E4 D4 A3 B2"]},{"n":4,"g":"Jazz","c":["Dsus2/C","C#7#9","Dm9","D#9","Em9","Fm9","F#m7b5","Gaug7","G#7(13)","Aaug7","A#7(13)","Bm7(11)"],"v":["D4 A3 E3 C3","D#4 B3 F3 C#3","E4 C4 F3 D3","F4 C#4 G3 D#3","F#4 D4 G3 E3","G4 D#4 G#3 F2","E4 C4 A3 F#2","D#4 B3 F3 G2","F4 C4 F#3 G#2","F4 C#4 G3 A2","G4 D4 G#3 A#2","E4 D4 A3 B2"]},{"n":5,"g":"Jazz","c":["CM9","C#M7","DM9","D#M9","EM9","FM9","F#M9","GM9","G#M9","AM9","A#M9","BM9"],"v":["D4 B3 E3 C3","D#4 C4 F3 C#3","E4 C#4 F#3 D3","F4 D4 G3 D#3","F#4 D#4 G#3 E3","G4 E4 A3 F3","G#4 F4 A#3 F#3","A4 F#4 B3 G3","A#4 G4 C4 G#3","B4 G#4 C#4 A3","C5 A4 D4 A#3","C#5 A#4 D#4 B3"]},{"n":6,"g":"Blues","c":["C9","C#9","D9","D#9","E7#9","Fm9","F#dim7","G7(13)","G#dim7","Aaug7","A#7(13)","Bm7b5"],"v":["E4 D4 A#3 C3","D#4 B3 F3 C#3","E4 C4 F#3 D3","F4 C#4 G3 D#3","G4 D4 G#3 E3","G4 D#4 A3 F2","D#4 C4 A3 F#2","E4 B3 F3 G2","F4 D4 B3 G#2","F4 C#4 G3 A2","G4 D4 G#3 A#2","F4 D4 A3 B2"]},{"n":7,"g":"Trad Maj","c":["C","C#dim7","Dm","D#dim7","Em","F","F#m7b5","G","G#dim7","Am","A#","Bdim"],"v":["C5 G4 E4 C3","A#4 G4 E4 C#3","A4 F4 D4 D3","C5 A4 F#4 D#3","B4 G4 E4 E3","C5 A4 F4 F3","C5 A4 E4 F#3","B4 G4 D4 G3","B4 F4 D4 G#3","C5 A4 E4 A2","A#4 F4 D4 A#2","B4 F4 D4 B2"]},{"n":8,"g":"Trad Min","c":["Cm","C#","Ddim","Eb","Edim7","Fm","F#dim7","Gm","G#","Am7b5","A#","Bdim7"],"v":["C5 G4 D#4 C3","G#4 F4 C#4 C#3","G#4 F4 D4 D3","A#4 G4 D#4 D#3","A#4 G4 C#4 E3","G#4 F4 C4 F2","A4 D#4 C4 F#2","G4 D4 A#3 G2","G#4 D#4 C4 G#2","G4 D#4 C4 A2","A#4 F4 D4 A#2","G#4 F4 D4 B2"]},{"n":9,"g":"Trad Min 2","c":["Cm","C#","Ddim","D#aug","Em","Fm","F#dim7","G","G#","Am7b5","A#","Bdim"],"v":["C5 G4 D#4 C3","G#4 F4 C#4 C#3","G#4 F4 D4 D3","B4 G4 D#4 D#3","B4 G4 E4 E3","G#4 F4 C4 F2","A4 D#4 C4 F#2","G4 D4 B3 G2","C4 D#4 G#4 G#2","G4 D#4 C4 A2","A#4 F4 D4 A#2","B4 F4 D4 B2"]},{"n":10,"g":"Pop Min","c":["Cmadd9","C#M7","Dm7b5","D#M7","Edim7","Fm9","F#dim7","Gm7","G#M7","Am7b5","G#/A#","Bdim7"],"v":["G4 D#4 D4 C3","F4 C4 G#3 C#3","G#4 F4 C4 D3","G4 D4 A#3 D#3","G4 C#4 A#3 E3","G4 D#4 G#3 F2","D#4 C4 A3 F#2","F4 D4 A#3 G2","G4 D#4 C4 G#2","G4 D#4 C4 A2","D#4 C4 G#3 A#2","F4 D4 G#3 B2"]},{"n":11,"g":"Pop Min","c":["Cmadd9","Gdim/C#","Dm7b5","D#M7","EM9","Fm9","F#dim7","Gaug7","G#M7","Am7b5","Cm7/A#","Baug#9"],"v":["G4 D#4 D4 C3","G4 D#4 A#3 C#3","F4 C4 G#3 D3","G4 D4 A#3 D#3","F#4 D#4 G#3 E3","G4 D#4 G#3 F2","D#4 C4 A3 F#2","D#4 B3 F3 G2","G4 D#4 C4 G#2","G4 D#4 C4 A2","G4 D#4 C4 A#2","G4 D#4 D4 B2"]},{"n":12,"g":"Jazz Min","c":["Cm7(11)","C#7#9","Dm7b5","D#M7#5","E9","F9","F#dim7","G7#9","G#M7b5","Am7b5","A#m7","Bdim7"],"v":["F4 D#4 A#3 C3","E4 B3 F3 C#3","G#4 F4 C4 D3","G4 D4 B3 D#3","F#4 D4 G#3 E2","G4 D#4 A3 F2","D#4 C4 A3 F#2","A#4 F4 B3 G2","G4 D4 C4 G#2","G4 D#4 C4 A2","F4 C#4 G#3 A#2","F4 D4 G#3 B2"]},{"n":13,"g":"Jazz Min","c":["Cm9","C#9","Dm9","D#9","EM9","Fm9","F#dim7","G7(13)","G#m6","Am7b5","A#m7","Bm7b5"],"v":["D4 A#3 D#3 C3","D#4 B3 F3 C#3","E4 C4 F3 D3","F4 C#4 G3 D#3","F#4 D#4 G#3 E2","G4 D#4 G#3 F2","D#4 C4 A3 F#2","E4 B3 F3 G2","F4 D#4 B3 G#2","G4 D#4 C4 A2","F4 C#4 G#3 A#2","F4 D4 A3 B2"]},{"n":14,"g":"Oct Stack","c":["","","","","","","","","","","",""],"v":["C5 C4","C#5 C#4","D5 D4","D#5 D#4","E5 E4","F5 F4","F#5 F#4","G5 G4","G#5 G#4","A5 A4","A#5 A#4","B5 B4"]},{"n":15,"g":"4th Stack","c":["","","","","","","","","","","",""],"v":["F4 C4","F#4 C#4","G4 D4","G#4 D#4","A4 E4","A#4 F4","B4 F#4","C5 G4","C#5 G#4","D5 A4","D#5 A#4","E5 B4"]},{"n":16,"g":"5th Stack","c":["","","","","","","","","","","",""],"v":["G4 C4","G#4 C#4","A4 D4","A#4 D#4","B4 E4","C5 F4","C#5 F#4","D5 G4","D#5 G#4","E5 A4","F5 A#4","F#5 B4"]},{"n":17,"g":"Utility","c":["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],"v":["G3 E3 C3","G#3 F3 C#3","A3 F#3 D3","A#3 G3 D#3","B3 G#3 E3","C4 A3 F3","C#4 A#3 F#3","D4 B3 G3","D#4 C4 G#3","E4 C#4 A3","F4 D4 A#3","F#4 D#4 B3"]},{"n":18,"g":"Utility","c":["Cm","C#m","Dm","D#m","E","Fm","F#m","Gm","G#m","Am","A#m","Bm"],"v":["G3 D#3 C3","G#3 E3 C#3","A3 F3 D3","A#3 F#3 D#3","B3 G3 E3","C4 G#3 F3","C#4 A3 F#3","D4 A#3 G3","D#4 B3 G#3","E4 C4 A3","F4 C#4 A#3","F#4 D4 B3"]},{"n":19,"g":"Utility","c":["CM7","C#M7","DM7","D#M7","EM7","FM7","F#FM7","GM7","G#M7","AM7","A#M7","BM7"],"v":["B3 G3 E3 C3","C4 G#3 F3 C#3","C#4 A3 F#3 D3","D4 A#3 G3 D#3","D#4 B3 G#3 E3","E4 C4 A3 F3","F4 C#4 A#3 F#3","F#4 D4 B3 G3","G4 D#4 C4 G#3","G#4 E4 C#4 A3","A4 F4 D4 A#3","A#4 F#4 D#4 B3"]},{"n":20,"g":"Utility","c":["Cm7","C#m7","Dm7","D#m7","Em7","Fm7","F#m7","Gm7","G#m7","Am7","A#m7","Bm7"],"v":["A#3 G3 D#3 C3","B3 G#3 E3 C#3","C4 A3 F3 D3","C#4 A#3 F#3 D#3","D4 B3 G3 E3","D#4 C4 G#3 F3","E4 C#4 A3 F#3","F4 D4 A#3 G3","F#4 D#4 B3 G#3","G4 E4 C4 A3","G#4 F4 C#4 A#3","A4 F#4 D4 B3"]},{"n":21,"g":"Utility","c":["CM9","C#M9","DM9","D#M9","EM9","FM9","F#M9","GM9","G#M9","AM9","A#M9","BM9"],"v":["D4 B3 E3 C3","D#4 C4 F3 C#3","E4 C#4 F#3 D3","F4 D4 G3 D#3","F#4 D#4 G#3 E3","G4 E4 A3 F3","G#4 F4 A#3 F#3","A4 F#4 B3 G3","A#4 G4 C4 G#3","B4 G#4 C#4 A3","C5 A4 D4 A#3","C#5 A#4 D#4 B3"]},{"n":22,"g":"Utility","c":["Cm9","C#m9","Dm9","D#m9","Em9","Fm9","F#m9","Gm9","G#m9","Am9","A#m9","Bm9"],"v":["D4 A#3 D#3 C3","D#4 B3 E3 C#3","E4 C4 F3 D3","F4 C#4 F#3 D#3","F#4 D4 G3 E3","G4 D#4 G#3 F3","G#4 E4 A3 F#3","A4 F4 A#3 G3","A#4 F#4 B3 G#3","B4 G4 C4 A3","C5 G#4 C#4 A#3","C#5 A4 D4 B3"]},{"n":23,"g":"Utility","c":["CM9/#11","C#M9/#11","DM9/#11","D#M9/#11","EM9/#11","FM9/#11","F#M9/#11","GM9/#11","G#M9/#11","AM9/#11","A#M9/#11","BM9/#11"],"v":["F#4 D4 B3 C3","G4 D#4 C4 C#3","G#4 E4 C#4 D3","A4 F4 D4 D#3","A#4 F#4 D#4 E3","B4 G4 E4 F3","C5 G#4 F4 F#3","C#5 A4 F#4 G3","D5 A#4 G4 G#3","D#5 B4 G#4 A3","E5 C5 A4 A#3","F5 C#5 A#4 B3"]},{"n":24,"g":"Utility","c":["Cm9/11","C#m9/11","Dm9/11","D#m9/11","Em9/11","Fm9/11","F#m9/11","Gm9/11","G#m9/11","Am9/11","A#m9/11","Bm9/11"],"v":["F4 D4 A#3 C3","F#4 D#4 B3 C#3","G4 E4 C4 D3","G#4 F4 C#4 D#3","A4 F#4 D4 E3","A#4 G4 D#4 F3","B4 G#4 E4 F#3","C5 A4 F4 G3","C#5 A#4 F#4 G#3","D5 B4 G4 A3","D#5 C5 G#4 A#3","E5 C#5 A4 B3"]},{"n":25,"g":"Utility","c":["CM7","CM7","CM7","CM7","CM7","CM7","CM7","CM7","CM7","CM7","CM7","CM7"],"v":["B3 G3 E3 C3","C4 B3 G3 E3","E4 C4 B3 G3","G4 E4 C4 B3","B4 G4 E4 C4","C5 B4 G4 E4","B4 E4 G3 C3","C5 B4 E4 G3","E5 B4 G4 C4","G5 C5 B4 E4","B5 E5 C5 G4","C6 G5 E5 B4"]},{"n":26,"g":"Utility","c":["Cm7","Cm7/D#","Cm7/G","Cm7/A#","Cm7","Cm7/D#","Cm7","Cm7/G","Cm7","Cm7/D#","Cm7/G","Cm7/A#"],"v":["A#3 G3 D#3 C3","C4 A#3 G3 D#3","D#4 C4 A#3 G3","G4 D#4 C4 A#3","A#4 G4 D#4 C4","C5 A#4 G4 D#4","A#4 D#4 G3 C3","C5 A#4 D#4 G3","D#5 A#4 G4 C4","G5 C5 A#4 D#4","A#5 D#5 C5 G4","C6 G5 D#5 A#4"]},{"n":27,"g":"Pop/Synth","c":["C","Em","G","Am","Bm","C","Em","G","Am","Bm","C","Em"],"v":["E4 G3 C3","G4 B3 E3","B4 D4 G3","C5 E4 A3","D5 F#4 B3","E5 G4 C4","G5 B4 E4","B5 D5 G4","C6 E5 A4","D6 F#5 B4","E6 G5 C5","D7 B5 E5"]},{"n":28,"g":"Pop","c":["C","C7","Dm7","D#M7","C/E","F","Fm","G","C/G","Am7","Eaug/A#","G7/B"],"v":["C4 G3 E3 C3","A#3 G3 E3 C3","C4 A3 F3 D3","A#3 G3 D3 D#2","C4 G3 E3 E2","C4 A3 F3 F2","C4 G#3 F3 F2","B3 G3 D3 G2","C4 G3 E3 G2","C4 G3 E3 A2","C4 G#3 E3 A#2","B3 G3 F3 B2"]},{"n":29,"g":"Pop","c":["C","FM7","G","Em7","Dm7","CM7/E","F","D7/G","G","Am","Dm","G7"],"v":["E4 C4 C3 C2","E4 C4 F2 F1","D4 B3 G2 G1","D4 G3 B2 E2","C4 F3 A2 D2","C4 G3 B2 E2","C4 A3 C3 F2","D4 A3 C3 G2","D4 B3 D3 G2","E4 C4 E3 A2","F4 A3 A2 D2","G4 B3 F3 G2"]},{"n":30,"g":"Pop","c":["Cm","D#","G#","A#","Gm","G#","D#","A#sus4/D","Cm","G/B","G#","F/A"],"v":["D#4 G3 C3","G4 A#3 D#3","C4 D#3 G#2","D4 F3 A#2","G4 D4 A#3 G3","G#4 D#4 C4 G#3","G4 D#4 A#3 D#3","F4 D#4 A#3 D3","D#4 C4 G3 C3","D4 B3 G3 B2","C4 G#3 D#3 G#2","C4 A3 F3 A2"]},{"n":31,"g":"Pop","c":["Cadd11","Bb/C","Dm7","D7","Cadd9/E","FM7","F7","Gm7","A/G","FM7/A","F/Bb","G7/B"],"v":["C5 F4 E4 C3","F4 D4 A#3 C3","F4 C4 A3 D3","F#4 C4 A3 D3","G4 D4 C4 E3","A4 E4 C4 F3","A4 D#4 C4 F3","A#4 F4 D4 G3","A4 E4 C#4 G3","C5 F4 E4 A3","A4 F4 C4 A#3","G4 F4 D4 B3"]},{"n":32,"g":"Pop","c":["Cmb13","D#M7","G7/D","A#/D#","C7","Fm7","D#","Gm7","G#M9","G#m6","F7/A","A#add11"],"v":["D#4 G#3 G3 C3","G4 D4 A#3 D#3","F4 B3 G3 D3","F4 D4 A#3 D#3","E4 A#3 G3 C3","G#4 D#4 C4 F3","G4 D#4 A#3 D#3","F4 D4 A#3 G3","G4 C4 A#3 G#3","F4 D#3 B3 G#3","F4 D#4 C3 A3","A#4 D#4 D4 A#3"]},{"n":33,"g":"Cinematic","c":["CM7","F/E","A#M7","G","Dm7","C","A#M7","G","C","A/C#","Dm","G/F"],"v":["B3 G3 E3 C3","C4 A3 F3 E3","D4 A3 F3 A#2","D4 B3 G3 G2","F4 C4 F3 D3","E4 C4 G3 C3","F4 D4 A3 A#2","G4 D4 B3 G2","E4 C4 G3 C3","E4 C#4 A3 C#3","F4 D4 A3 D3","G4 D4 B3 F3"]},{"n":34,"g":"Cinematic/ Synthwave","c":["Csus2","Dsus2","D#sus2","Fsus2","Gsus2","A#sus2","Csus2","Dsus2","D#sus2","Fsus2","Gsus2","A#sus2"],"v":["D4 G3 D3 C3","E4 A3 E3 D3","F4 A#3 F3 D#3","G4 C4 G3 F3","A4 D4 A3 G3","C5 F4 C4 A#3","D5 G4 D4 C4","E5 A4 E4 D4","F5 A#4 F4 D#4","G5 C5 G4 F4","A5 D5 A4 G4","C6 F5 C5 A#4"]},{"n":35,"g":"Cinematic/ House","c":["CM7","Am7","DM7","Bm7","EM7","C#m7","F#M7","D#m7","G#M7","Fm7","A#M7","Gm7"],"v":["B4 E4 G3 C3","G4 C4 E3 A2","C#5 F#4 A3 D3","A4 D4 F#3 B2","D#5 G#4 B3 E3","B4 E4 G#3 C#3","F5 A#4 C#4 F#3","C#5 F#4 A#3 D#3","G5 C5 D#4 G#3","D#5 G#4 C4 F3","A5 D5 F4 A#3","F5 A#4 D4 G3"]},{"n":36,"g":"Cinematic","c":["Ebsus2/C","Fsus2/D","Gsus2/E","Absus2/F","Bbsus2/G","Csus2/A","Dsus2/B","Ebsus2/C","Fsus2/D","Gsus2/E","Absus2/F","Bbsus2/G"],"v":["Eb4 Bb3 F3 C3","F4 C4 G3 D3","G4 D4 A3 E3","Ab4 Eb4 Bb3 F3","Bb4 F4 C4 G3","C5 G4 D4 A3","D5 A4 E4 B3","Eb5 Bb4 F4 C4","F5 C5 G4 D4","G5 D5 A4 E4","Ab5 Eb5 Bb4 F4","Bb5 F5 C5 G4"]},{"n":37,"g":"Cinematic","c":["C6sus2","Dsus2","Emadd11","Dadd9/F#","Gadd9","Am7/11","Bm7","C6","D6","Emadd9","E7sus4","Em7b5/F"],"v":["A4 D4 G3 C3","A4 E4 A3 D3","A4 G4 B3 E3","A4 E4 D4 F#3","B4 A4 D4 G3","D5 G4 C4 A3","D5 A4 F#4 B3","E5 A4 G4 C4","F#5 B4 A4 D4","F#5 B4 G4 E4","A5 D5 B4 E4","G5 E5 D5 F4"]},{"n":38,"g":"New Age/Cinem atic","c":["C","Gsus4","G7sus4","A#/D#","C/E","Gsus4/F","D/F#","C/G","E/G#","Am","Fsus4","G"],"v":["E4 C4 G3 C3","G4 D4 C4 G3","F4 D4 C4 G3","F4 D4 A#3 D#3","E4 C4 G3 E3","D4 C4 G3 F3","F#4 D4 A3 F#3","E4 C4 G3 G2","E4 B3 G#3 G#2","E4 C4 A3 A2","F4 C4 A#3 F3","G4 D4 B3 B2"]},{"n":39,"g":"Synthwave","c":["C6sus4","Gmadd9/D","Edim11","Fsus2/D","BbM7","Gmadd9","Am/G","C7/G","A#M7","Gm/A","C7/A#","A#m6"],"v":["A3 G3 F3 C3","A#3 A3 G3 D3","A#3 A3 G3 E3","C4 G3 F3 D3","D4 A#3 A3 F3","D4 A#3 A3 G3","E4 C4 A3 G3","E4 C4 A#3 G3","F4 D4 A#3 A3","G4 D4 A#3 A3","G4 E4 C4 A#3","G4 F4 C#4 A#3"]},{"n":40,"g":"Synthwave","c":["Cadd9","Dadd9","D#add9","Fadd9","Gadd9","G#add9","A#add9","Cadd9","Dadd9","D#add9","Fadd9","Gadd9"],"v":["G3 E3 D3 C3","A3 F#3 E3 D3","A#3 G3 F3 D#3","C4 A3 G3 F3","D4 B3 A3 G3","D#4 C4 A#3 G#3","F4 D4 C4 A#3","G4 E4 D4 C4","A4 F#4 E4 D4","A#4 G4 F4 D#4","C5 A4 G4 F4","D5 B4 A4 G4"]},{"n":41,"g":"Synthwave","c":["C","C#dim7","Fsus2/D","D#add9","Csus2/E","FM7","F#dim","Gsus4","G#6","Csus2/A","Csus2/A#","G7/B"],"v":["C4 G3 E3 C2","A#3 G3 E3 C#2","C4 G3 F3 D2","A#3 G3 F3 D#2","C4 G3 D3 E2","C4 A3 E3 F2","C4 A3 F#3 F#2","C4 G3 D3 G2","C4 G#3 F3 G#2","C4 G3 D3 A2","C4 G3 D3 A#2","B3 G3 F3 B2"]},{"n":42,"g":"Synthwave","c":["C","A#sus2/D#","A#7/G#","G/B","C","Fm","F#dim7","C","G#add9","F/A","A#","G7/B"],"v":["C5 E4 G3 C3","C5 F4 A#3 D#3","A#4 F4 G#3 G#2","B4 D4 G3 B2","C5 E4 G3 C3","C5 F4 G#3 F2","C5 D#4 A3 F#2","C5 E4 G3 G2","C5 D#4 A#3 G#2","C5 F4 A3 A2","D5 F4 A#3 A#2","D5 F4 G3 B2"]},{"n":43,"g":"Synthwave","c":["Cm7","A#/C","D#/G#","A#/G#","D#/F","A#/F","G#add9","A#","G#M7","Fsus2/A","A#6","Fm7/B"],"v":["G4 D#4 A#3 C3","F4 D4 A#3 C3","G4 D#4 A#3 G#2","F4 D4 A#3 G#2","G4 D#4 A#3 F3","F3 D4 A#3 F3","D#4 C4 A#3 G#2","F4 D4 A#3 A#2","D#4 C4 G3 G#2","F4 C4 G3 A2","F4 D4 G3 A#2","F4 D#4 G#3 B2"]},{"n":44,"g":"Synthwave","c":["Cm7","C#sus2/F","Gm7","D#","Csus2/E","Fm","D#dim7","G#sus2/G","Cm7","F7","Fm7","G5"],"v":["A#4 G4 D#4 C3","G#4 D#4 C#4 F3","A#4 F4 D4 G3","A#4 D#4 G3 D#3","G4 D4 C4 E3","G#4 F4 C4 F3","A4 D#4 C4 F#3","A#4 D#4 G#3 G3","A#4 D#4 C4 C3","A4 D#4 C4 F3","G#4 D#4 C4 F3","G4 D4 D3 G3"]},{"n":45,"g":"Synthwave","c":["Ab","Fm","Gm","Ab","Fm","Bb","Gm","Cm","Ab","Fm","Bb","Cm"],"v":["Ab3 Eb3 C3","Ab3 F3 C3","Bb3 G3 D3","C4 Ab3 Eb3","C4 Ab3 F3","D3 Bb3 F3","D4 Bb3 G3","Eb4 C4 G3","Eb4 C4 Ab3","F4 C4 Ab3","F4 D4 Bb3","G4 Eb4 C4"]},{"n":46,"g":"Synthwave","c":["C","D","Em","D","G","Am","Bm","C","D","Em","D","G"],"v":["E3 G2 C2","F#3 A2 D2","G3 B2 E2","A3 D3 F#2","B3 D3 G2","C4 E3 A2","D4 F#3 B2","E4 G3 C3","F#4 A3 D3","G4 B3 E3","A4 D4 F#3","B4 D4 G3"]},{"n":47,"g":"Synthwave/ House","c":["Cm7","D#M7","Dm7","Fm7","D#M7","Gm7","Fm7","G#M7","Gm7","A#7","G#M7","C#/C"],"v":["A#3 G3 D#3 C3","D4 A#3 G3 D#3","C4 A3 F3 D3","D#4 C4 G#3 F3","D4 A#3 G3 D#3","F4 D4 A#3 G3","D#4 C4 G#3 F3","G4 D#4 C4 G#3","F4 D4 A#3 G3","G#4 F4 D4 A#3","G4 D#4 C4 G#3","G#4 F4 C#4 C4"]},{"n":48,"g":"Trance","c":["Cm","Ab/C","Bb/D","Eb","C/E","Fm","F","Gm","Ab","F7/A","Bb","G7/B"],"v":["Eb4 G3 C3 C2","Eb4 Ab3 C3 C2","F4 Bb3 F3 D2","G4 Bb3 Bb2 Eb2","G4 C4 G3 E2","Ab4 C4 F3 F2","A4 C4 F3 F2","Bb4 D4 G3 G2","C4 Eb3 Ab2 Ab1","C4 F3 Eb3 A1","D4 F3 Bb2 Bb1","D4 G3 F3 B1"]},{"n":49,"g":"House","c":["Cm7","C#m7","Dm7","EbM7","Gm/E","Eb/F","D7/F#","Gm7","AbM7","Ab/Bb","BbM7","Bm7b5"],"v":["Eb4 Bb3 G3 C3","E4 B3 G#3 C#3","F4 C4 A3 D3","G4 D4 Bb3 Eb3","G4 D4 Bb3 E3","G4 Eb4 Bb3 F3","C4 A3 D3 F#2","Bb3 F3 D3 G2","C4 G3 Eb3 Ab2","Eb4 C4 Ab3 Bb2","D4 A3 F3 Bb2","D4 A3 F3 B2"]},{"n":50,"g":"House","c":["Cmaj7","Dmaj7","Em7","Fmaj9","Gmaj9","Eadd9/G#","Am7","Bm7","Cmaj9","Dm7/9","Em7","Fmaj7"],"v":["E4 B3 G3 C3","F#4 C#4 A3 D3","G4 D4 B3 E3","G4 E4 C4 F3","A4 F#4 D4 G3","B4 F#4 E4 G#3","C5 G4 E4 A3","D5 A4 F#4 B3","D5 B4 G4 C4","E5 C5 F4 D4","G5 D5 B4 E4","A5 E5 C5 F4"]},{"n":51,"g":"House","c":["Cm7","G#/C#","Dm7","A#/D#","Em7","C/F","F#m7","D/G","G#m7","E/A","A#m7","F#/B"],"v":["A#3 G3 D#3 C3","C4 G#3 D#3 C#3","C4 A3 F3 D3","D4 A#3 F3 D#3","D4 B3 G3 E3","E4 C4 G3 F3","E4 C#4 A3 F#3","F#4 D4 A3 G3","F#4 D#4 B3 G#3","G#4 E4 B3 A3","G#4 F4 C#4 A#3","A#4 F#4 C#4 B3"]},{"n":52,"g":"House","c":["Cm7","G#M7","Dm7","A#M7","Em7","CM7","F#m7","DM7","G#m7","EM7","A#m7","F#M7"],"v":["A#4 D#4 G3 C3","G4 C4 D#3 G#2","C5 F4 A3 D3","A4 D4 F3 A#2","D5 G4 B3 E3","B4 E4 G3 C3","E5 A4 C#4 F#3","C#5 F#4 A3 D3","F#5 B4 D#4 G#3","D#5 G#4 B3 E3","G#5 C#5 F4 A#3","F5 A#4 C#4 F#3"]},{"n":53,"g":"House","c":["Cm7/11","Cdim7","C#M7/b5","Ddim7","Cm","C#M7","CM7","Em7","FM7","Fm6","Csus2/E","Fm"],"v":["F4 A#3 D#3 C3","F#4 A3 D#3 C3","G4 C4 F3 C#3","G#4 B3 F3 D3","G4 C4 G3 D#3","F4 C4 F3 C#3","E4 B3 G3 C3","G4 D4 B3 E3","A4 E4 C4 F3","G#4 D4 C4 F3","G4 D4 C4 E3","F4 C4 G#3 F3"]},{"n":54,"g":"House","c":["CM7","Em7","Dm7","FM7","D#M7","Gm7","FM7","Am7","Gm7","A#M7","Am7","Bm7"],"v":["B3 G3 E3 C3","D4 B3 G3 E3","C4 A3 F3 D3","E4 C4 A3 F3","D4 A#3 G3 D#3","F4 D4 A#3 G3","E4 C4 A3 F3","G4 E4 C4 A3","F4 D4 A#3 G3","A4 F4 D4 A#3","G4 E4 C4 A3","A4 F#4 D4 B3"]},{"n":55,"g":"Jazz House","c":["CM13","CM7#5","Dm7b5","G7","Cadd9/E","Fadd9","FmAdd9","G9","E7/G#","Am9/11","Gm11/Bb","CM7#5/G#"],"v":["B4 A4 E4 C4","B4 G#4 E4 C4","C5 Ab4 F4 D4","B4 G4 F4 D4","D5 C5 G4 E4","C5 A4 G4 F4","C5 Ab4 G4 F4","F5 B4 A4 G4","E5 D5 B4 G#4","B5 D5 C5 A4","G5 D5 C5 Bb4","E5 C5 B4 G#4"]},{"n":56,"g":"Jazz House","c":["Cm7","Db6","Dm7","Dm7b5","EbM7","Fm7","Gb6","Gm7","Ab6","AbM7","Am7","BbM7"],"v":["Eb5 Bb4 C4 G3","F5 Bb4 Db4 Ab3","F5 C5 D4 A3","F5 C5 D4 Ab3","G5 D5 Eb4 Bb3","Ab5 Eb5 F4 C4","Bb5 Eb5 Gb4 Db4","Bb5 F5 G4 D4","C6 F5 Ab4 Eb4","C6 G5 Ab4 Eb4","C6 G5 A4 E4","D6 A5 Bb4 F4"]},{"n":57,"g":"House/Tec hno","c":["C5b9","DbM7","Dm7","Ebsus11","EM7#11","Fm9","GbM7#11","Gm7","AbM7#11","A7alt","Bb5add9/b13","C7sus4"],"v":["C4 G3 C#3 C3","C4 G#3 F3 C#3","C4 A3 F3 D3","C#4 A#3 G#3 D#3","D#4 A#3 G#3 E3","C4 G#3 G3 F3","F4 C3 A#3 F#3","F4 D3 A#3 G3","G4 D4 C4 G#3","G4 C#4 C4 A3","F4 C4 F#3 A#2","A#3 G3 F3 C3"]},{"n":58,"g":"Techno","c":["Cm7","A#m/C#","A#/D","D#","C/E","Cm/F","D/F#","G","G#M7","Csus4/A","D#/A#","G/B"],"v":["G4 D#4 A#3 C3","F4 C#4 A#3 C#3","F4 D4 A#3 D3","G4 D#4 A#3 D#3","G4 E4 C4 E2","G4 D#4 C4 F2","A4 F#4 D4 F#2","G4 D4 B3 G2","G4 D#4 C4 G#2","G4 F4 C4 A2","G4 D#4 A#3 A#2","G4 D4 B3 B2"]},{"n":59,"g":"EDM","c":["CM9","C6","Dm9","Dm6","EM9","FM9","F6","GM9","G6","Am9","Am6","Bm9"],"v":["B3 A3 D3 C3","F#3 B3 E3 D#3","C#4 B3 E3 D3","G#4 C#4 F#3 F3","D#4 C#4 F#3 E3","E4 D4 G3 F3","B4 E4 A3 G#3","F#4 E4 A3 G3","C#4 F#4 B3 A#3","G#5 F#4 B3 A3","D#5 G#4 C#4 C4","A#5 G#4 C#4 B3"]},{"n":60,"g":"EDM","c":["CM13(no3)","EM9(no3)","DM13(no3)","F#M9(no3)","EM13(no3)","FM13(no3)","AM9(no3)","GM13(no3)","BM9(no3)","AM13(no3)","C#M9(no3)","BM13(no3)"],"v":["B3 A3 D3 C3","F#4 B3 E3 D#3","C#4 B3 E3 D3","G#4 C#4 F#3 F3","D#4 C#4 F#3 E3","E4 D4 G3 F3","B4 E4 A3 G#3","F#4 E4 A3 G3","C#5 F#4 B3 A#3","G#4 F#4 B3 A3","D#5 G#4 C#4 C4","A#4 G#4 C#4 B3"]},{"n":61,"g":"EDM","c":["Csus9/13","C6","Dsus9/13","D6","Esus9/13","Fsus9/13","F6","Gsus9/13","G6","Asus9/13","A6","Bsus9/13"],"v":["A4 D4 G3 C3","E5 A4 G3 C3","B4 E4 A3 D3","F#5 B4 A3 D3","C#5 F#4 B3 E3","D5 G4 C4 F3","A4 D5 C4 F3","E5 A4 D4 G3","B4 E4 D4 G3","F#5 B4 E4 A3","C#5 F#4 E4 A3","G#5 C#5 F#4 B3"]},{"n":62,"g":"EDM","c":["CM13","C#sus9","DM13","D#sus9","EM13","FM13","F#sus9","GMaj13","Absus9","AM13","Bbsus9","BM13"],"v":["E4 B3 A3 C3","D#4 A#3 F#3 C#3","F#4 C#4 B3 D3","F4 A#3 G#3 D#3","G#4 D#4 C#4 E3","A4 E4 D4 F3","G#4 C#4 B3 F#3","B4 F#4 E4 G3","A#4 D#4 C#4 G#3","C#5 G#4 F#4 A3","C5 F4 D#4 A#3","D#5 A#4 G#4 B3"]},{"n":63,"g":"EDM","c":["CM7","Dbm7","Dm7","Eb6","Em7","FM7","Gbm7","GM7","Abm7","Am7","Bb6","Bm7"],"v":["E4 B3 C3 G2","E4 B3 C#3 G#2","F4 C4 D3 A2","G4 C4 D#3 A#2","G4 D4 E3 B2","A4 E4 F3 C3","A4 E4 F#3 C#3","B4 F#4 G3 D3","B4 F#4 G#3 D#3","C5 G4 A3 E3","D5 G4 B3 F3","D5 A4 B3 F#3"]},{"n":64,"g":"EDM","c":["C6","AM7","D6","BM7","E6","F6","DM7","G6","EM7","A6","GbM7","B6"],"v":["E4 A3 G3 C3","E4 A3 G#3 C#3","F#4 B3 A3 D3","F#4 B3 A#3 D#3","G#4 C#4 B3 E3","A4 D4 C4 F3","A4 D4 C#4 F#3","B4 E4 D4 G3","B4 E4 D#4 G#3","C#5 F#4 E4 A3","C#5 F#4 F4 A#3","D#5 G#4 F#4 B3"]},{"n":65,"g":"Gospel/R& B","c":["G/C","C#dim7","Dm7b5","D#dim7","Em7","Fm11","F#dim7","Gm7b13","G#M9","Am7/b13","A#m7add13","Bm7/b13"],"v":["G4 D4 B3 C3","G4 E4 A#3 C#3","F4 C4 Ab3 D3","F#4 C4 A3 D#3","G4 D4 B3 E3","Eb4 Bb3 Ab3 F2","D#4 A3 C3 F#2","Eb4 Bb3 F3 G2","G4 C4 A#3 G#2","F4 C3 G3 A2","G4 C#4 G#3 A#2","G4 D3 A3 B2"]},{"n":66,"g":"Gospel/R& B","c":["Cm7/b13","C#M13","Dm7/b13","D#m11","D/E","G#m/F","F#6","A#m/G","G#m11","AM9","A#7/b13","F#/B"],"v":["F4 Bb3 Ab3 C3","F4 C4 A#3 C#3","F4 C4 Bb3 D3","F#4 C#4 G#3 D#3","F#4 D4 A3 E3","G#4 D#4 B3 F3","A#4 D#4 C#4 F#3","A#4 F4 C#4 G3","B4 F#4 C#4 G#3","B4 E4 C#4 A3","G#4 F#4 D4 A#3","A#4 F#4 C#4 B3"]},{"n":67,"g":"Gospel/R& B","c":["D","C/D","D/E","Dm/F","Dsus2/F#","Gadd9","E/G#","A","A#dim7","Bm7","D/C","C#dim"],"v":["D4 A3 F#3 D2","C4 G3 E3 D2","D4 A3 F#3 E2","D4 A3 F3 F2","D4 A3 E3 F#2","D4 B3 A3 G2","E4 B3 G#3 G#2","E4 C#4 A3 A1","C#4 G3 E3 A#1","D4 A3 F#3 B1","D4 A3 F#3 C2","C#4 G3 E3 C#2"]},{"n":68,"g":"Lofi R&B","c":["Cmadd9","Abadd9/C","Bb7/D","EbM9","Eb7/b9","Fm9","GbM6/9","Gm7","Eb/Ab","Fsus4/A","Bbsus","Bbsus4/b9"],"v":["D#4 D4 G3 C3","D#4 A#3 G#3 C3","F4 A#3 G#3 D3","D4 G3 F3 D#3","C#4 G3 E3 D#3","D#4 G#3 G3 F3","D#4 A#3 G#3 F#3","F4 D4 A#3 G3","G4 D#4 A#3 G#3","F4 C4 A#3 A3","F4 D#4 D4 A#3","A#4 D#4 B3 A#3"]},{"n":69,"g":"Lofi R&B","c":["Ab7/C","C#m11","DM9","Bsus4/Eb","EMadd2","DM7#11","F#m11","G6","Abm7","AM7add6","F#add9/A#","BMadd4"],"v":["G#3 F#3 D#3 C3","B3 F#3 E3 C#3","C#4 F#3 E3 D3","B3 F#3 E3 D#3","B3 G#3 F#3 E3","C#4 G#3 F#3 D3","E3 B2 A2 F#2","E3 B2 A2 G2","F#3 D#3 B2 G#2","G#3 F#3 C#3 A2","G#3 F#3 C#3 A#2","F#3 E3 D#3 B2"]},{"n":70,"g":"Funk","c":["C9","C/D","D7b9","EbM7","Em7b13","Eb/F","F#13","G7","Abm6add","Am7","Bm7","B7"],"v":["D4 Bb3 E3 C2","E4 C4 G3 D2","Eb4 C4 F#3 D2","D4 Bb3 G3 Eb2","D4 C4 G3 E2","Eb4 Bb3 G3 F2","Eb4 Bb3 E3 F#2","D4 B3 F3 G2","E4 B3 F3 Ab2","E4 C4 G3 A2","F#4 D4 A3 B2","F#4 D#4 A3 B2"]},{"n":71,"g":"Funk","c":["C7alt","DbM7","D7alt","Eb7","C7/E","F7alt","F11sus2","Gm7b5","Ab9","Bb9sus","Bb7add9","C11sus2"],"v":["Eb4 Ab3 E3 C3","F4 C4 Ab3 Db3","F4 C4 F#3 D3","G4 Db4 Bb3 Eb3","G4 C4 Bb3 E3","Ab4 Eb4 A3 F3","G4 Eb4 Bb3 F3","F4 Db4 Bb3 G3","Bb4 Gb4 C4 Ab3","Ab4 Eb4 C4 Bb3","Ab4 D4 C4 Bb3","D4 Bb3 F3 C3"]},{"n":72,"g":"Neo Soul","c":["Cm9","AbM7","Dm7","EbDimM7","EbM7","Fm7","CM7#5","Gm7","G7#5","AbM7","Fm7b5/B","Bb13/D"],"v":["D4 A#3 D#3 C3","C4 G#3 G3 D#3","C4 A3 F3 D3","D4 A3 F#3 D#3","D4 A#3 G3 D#3","D#4 C4 G#3 F3","E4 C4 G#3 G3","F4 D4 A#3 G3","F4 D#4 B3 G3","G4 D#4 C4 G#3","G#4 F4 D#4 B3","G4 A#3 G#3 D3"]},{"n":73,"g":"Neo Soul","c":["Cm7","C#dim7","Fm7","Fm7/b5","EbM7","Cm7/Eb","Edim","AbM7","Fm7","AbM13","Bb13","Bb6"],"v":["Bb4 G4 Eb4 C4","A#4 G4 E4 C#4","Ab4 F4 Eb4 C4","Ab4 F4 Eb4 B3","Bb4 G4 Eb4 D4","C5 Bb4 G4 Eb4","Db5 Bb4 G4 E4","C5 Ab4 G4 Eb4","Eb5 C5 Ab4 F4","F5 C5 Ab4 G4","G5 D5 Bb4 Ab4","G5 F5 D5 Bb4"]},{"n":74,"g":"Neo Soul","c":["Em7/D","Gm7b5/C#","FM7/E","DMb7/D#","GM7/F#","Edim7","Cadd13/E","E","Gaddb9/G#","Am9","Dm7","Emb9/F"],"v":["B3 G3 E3 D3","A#3 G3 F3 C#3","C4 A3 F3 E3","D4 A3 F#3 D#3","D4 B3 G3 F#3","C#4 A#3 G3 E3","C4 A3 G3 E3","E4 B3 G#3 E3","G4 D4 B3 G#3","G4 C4 B3 A3","F4 C4 F3 D3","E4 B3 G3 F3"]},{"n":75,"g":"Neo Soul","c":["CM7","C#m7","Dm7","EbM7","Em7","FM7","Gb7","GM7","AbM7","Am7","BbM7","Bm7"],"v":["B4 E4 C4 G3","B4 E4 C#4 G#3","C5 F4 D4 A3","D5 G4 Eb4 Bb3","D5 G4 E4 B3","E5 A4 F4 C4","E5 Bb4 Gb4 Db4","F#5 B4 G4 D4","G5 C5 Ab4 Eb4","G5 C5 A4 E4","A5 D5 Bb4 F4","A5 D5 B4 F#4"]},{"n":76,"g":"Neo-Soul","c":["CM7sus2","Gadd9/B","DM7sus2","E6sus4/C#","EM7sus2","F#6sus4/D#","F#M7sus2","G#6sus4/F","G#M7sus2","A#6sus4/G","A#M7sus2","Fadd9/A"],"v":["B3 G3 D3 C3","D4 A3 G3 B2","C#4 A3 E3 D3","E4 B3 A3 C#3","D#4 B3 F#3 E3","F#4 C#4 B3 D#3","F4 C#4 G#3 F#3","G#4 D#4 C#4 F3","G4 D#4 A#3 G#3","A#4 F4 D#4 G3","A4 F4 C4 A#3","C5 G4 F4 A3"]},{"n":77,"g":"Neo-Soul","c":["CM7","C#m7","DM7","D#m7","EM7","Fm7","F#M7","Gm7","AbM7","Am7","BbM7","Bm7"],"v":["E4 B3 G3 C3","E4 B3 G#3 C#3","F#4 C#4 A3 D3","F#4 C#4 A#3 D#3","G#4 D#4 B3 E3","G#4 D#4 C4 F3","A#4 F4 C#4 F#3","A#4 F4 D4 G3","C5 G4 D#4 G#3","C5 G4 E4 A3","D5 A4 F4 A#3","D5 A4 F#4 B3"]},{"n":78,"g":"Neo-Soul","c":["C11sus","A7/C#","Dm7","EbM7","C7/E","F6","D7/F#","Gdim7","E7/G#","F6/A","Bb6","Bm7b5"],"v":["Bb4 F4 D4 C4","A4 E4 G3 C#3","F4 C4 A3 D3","D4 Bb3 G3 Eb3","C4 Bb3 G3 E3","D4 C4 A3 F3","D4 C4 A3 F#3","E4 Db4 Bb3 G3","E4 D4 B3 G#3","F4 D4 C4 A3","G4 F4 D4 Bb3","A4 F4 D4 B3"]},{"n":79,"g":"Neo-Soul","c":["Ab/C","Db","Bb/D","Ebm","C/E","Db/F","Gb","Eb/G","Db/Ab","F7/A","Ebm/Bb","B"],"v":["Ab3 Eb3 C3","Ab3 F3 Db3","Bb3 F3 D3","Bb3 Gb3 Eb3","C4 G3 E3","Db4 Ab3 F3","Db4 Bb3 Gb3","Eb4 Bb3 G3","F4 Db4 Ab3","F4 Eb4 A3","Gb4 Eb4 Bb3","F#4 D#4 B3"]},{"n":80,"g":"Neo-Soul","c":["Cm7b5","Db7sus","Bbadd2/D","Ebm7","EM7","Fmb6","GbM9","Ebadd9/G","Ab7sus","AdimM7","Bbm9","Gb/B"],"v":["D#4 A#3 F#3 C3","F#4 D#4 B3 C#3","F4 C4 A#3 D3","F#4 C#4 A#3 D#3","G#4 D#4 B3 E3","G#4 C#4 C4 F3","F4 C#4 G#3 F#3","F4 D#4 A#3 G3","F#4 C#4 A#3 G#3","G#4 D#4 C4 A3","G#4 C#4 C4 A#3","A#4 F#4 C#4 B3"]},{"n":81,"g":"Neo-Soul","c":["C7alt","DbM7add6","Bb7/D","Db/Eb","Edim7","Fm9","Gb6/9","Gm7b5","Eb/Ab","F7/A","Bbm9","BM7#11"],"v":["Eb3 Ab3 E3 C3","C4 Bb3 F3 Db3","Bb3 Ab3 F3 D3","Ab3 F3 Db3 Eb2","G3 Db3 Bb2 E2","G3 Eb3 Ab2 F2","Ab3 Eb3 Bb2 Gb2","C4 F3 Db3 G2","Bb3 G3 Eb3 Ab2","C4 F3 Eb3 A2","C4 F3 Db3 Bb2","Bb3 F3 Eb3 B2"]},{"n":82,"g":"Jazz/Bossa","c":["Gm7","Bb/Ab","Am7","C/Bb","Bm7","D/C","C#m7","E/D","D#m7","F#/E","Fm7","Ab/Gb"],"v":["D4 Bb3 F3 G2","D4 Bb3 F3 Ab2","E4 C4 G3 A2","E4 C4 G3 Bb2","F#4 D4 A3 B2","F#4 D4 A3 C3","G#4 E4 B3 C#3","G#4 E4 B3 D3","A#4 F#4 C#4 D#3","A#4 F#4 C#4 E3","C5 Ab4 Eb4 F3","C5 Ab4 Eb4 Gb3"]},{"n":83,"g":"Bossa Nova","c":["CM9","C#dim","Dm7","D#dim","CM9/E","FM9","F#dim","Gm9","C13b9","F6","BbM9","G13b9"],"v":["D5 B4 E4 C4","E5 A#4 G4 C#4","F5 C5 A4 D4","B5 F#5 C5 D#4","G5 D5 C5 E4","G5 E5 A4 F4","A5 D#5 C5 F#4","A5 F5 Bb4 G4","A5 E5 Db5 C4","A5 D5 C5 F4","C6 A5 D5 Bb4","E5 B4 Ab4 G3"]},{"n":84,"g":"Bossa Nova","c":["CM7","C#Dim","Dm11","D#Dim","Em11","G/F","F9#11","Gsus13","Abdim7","FM7/A","Bb13","Eb/B"],"v":["E5 B4 G4 C4","G5 E5 A#4 C#4","G5 F5 C5 D4","A5 F#5 C5 D#4","A5 G5 D5 E4","B5 G5 D5 F4","B5 G5 Eb5 F4","E5 C5 F4 G3","E5 B4 F4 Ab3","E5 C5 F4 A3","G5 D5 Ab4 Bb3","G5 Eb5 Bb4 B3"]},{"n":85,"g":"Jazz","c":["CM7#11","DbM7#11","Dm9","EbM7#11","Em9","FM7#11","F#m11","G6/9","AbM7#11","Am9","BbM13","Bm11b5"],"v":["B4 F#4 E4 C3","C5 G4 F4 Db3","E5 G4 F4 D3","D5 A4 G4 Eb3","F#5 A4 G4 E3","E5 B4 A4 F3","E5 B4 A4 F#3","A5 E5 B4 G3","G5 D5 C5 Ab3","B5 D5 C5 A3","G5 D5 A4 Bb3","E5 A4 F4 B3"]},{"n":86,"g":"Jazz","c":["CM9","Db9#11","Dm9","D13b9/Eb","Em11","FM13","E/F","FM7/G","Ab7#9#5","Am9/11","BbM9","Bdim7"],"v":["B4 E4 D4 C3","Bb4 F4 B3 Db3","C5 F4 E4 D3","B4 Gb4 C4 Eb3","A4 G4 D4 E3","A4 E4 D4 F3","B4 G#4 E4 F3","E5 A4 F4 G3","B5 E5 C5 Ab3","B5 D5 C5 A3","A5 D5 C5 Bb3","G5 D5 Ab4 B3"]},{"n":87,"g":"Jazz","c":["Cmaj7","Aadd9/C#","Dm6","B7/D#","Em7","Fmaj9","Dadd9/F#","Gm7/9","Abmaj9","Cadd9/G","Eadd9/G#","Asus7"],"v":["E4 B3 G3 C3","E4 B3 A3 C#3","F4 B3 A3 D3","F#4 B3 A3 D#3","G4 D4 B3 E3","G4 E4 A3 F3","A4 E4 D4 F#3","A4 F4 Bb3 G3","Bb4 G4 C4 Ab3","B4 E4 C4 G3","B4 F#4 E4 G#3","D5 B4 G4 A3"]},{"n":88,"g":"Jazz","c":["Fmaj7/9","Gm7/b5","Abmaj7/9","Bbm7/b5","Bmaj7/9","C#m7/b5","DM7/9","Em7/b5","CM7/9","Dm7b5/9","GbM7/9","Abm7/b5"],"v":["C4 A3 G3 E3","Db4 Bb3 G3 F3","Eb4 C4 Bb3 G3","E4 Db4 Bb3 Ab3","F#4 D#4 C#4 A#3","G4 E4 C#4 B3","A4 F#4 E4 C#4","A#4 G4 E4 D4","B4 G4 E4 D4","C5 Ab4 F4 E4","Db5 Bb4 Ab4 F4","D5 B4 Ab4 Gb4"]},{"n":89,"g":"Jazz","c":["Cadd9","C#dim7","Gadd13/B","D#dim#5","FM7/E","G7sus2/F","D#dim7","C6","Ddim7","Am/C","Dm7b5","G7/D"],"v":["G4 E4 D4 C4","A#4 G4 E4 C#4","G4 E4 D4 B3","B4 A4 F#4 D#4","C5 A4 F4 E4","D5 A4 G4 F4","C5 A4 F#4 D#4","A4 G4 E4 C4","B4 G#4 F4 D4","C5 A4 E4 C4","C5 G#4 F4 D4","B4 G4 F4 D4"]},{"n":90,"g":"Jazz","c":["Em7","Edim7","FM7","F#dim7","Em7","C6/E","F#dim7","FM7b5","Eb7/F","Gadd9","A#11/F","F#dim7"],"v":["D4 B3 G3 E3","C#4 A#3 G3 E3","E4 C4 A3 F3","D#4 C4 A3 F#3","D4 B3 G3 E3","C4 A3 G3 E3","D#4 C4 A3 F#3","E4 B3 A3 F3","E4 B3 G#3 F3","D4 B3 A3 G3","E4 D4 A#3 F3","D#4 C4 A3 F#3"]},{"n":91,"g":"Jazz","c":["Gm7","G#M7","Am7","A#M7","G/B","D#M7","A#/D","D","CM7sus2","Em7","F6","C6sus2b5"],"v":["D4 A#3 F3 G2","D#4 C4 G3 G#2","E4 C4 G3 A2","F4 D4 A3 A#2","D4 G3 B2","D4 A#3 G3 D#3","D4 A#3 G3 D#3","D4 A3 F#3 D3","D4 B3 G3 C3","D4 B3 G3 E3","D4 C4 A3 F3","D4 A3 F#3 C3"]},{"n":92,"g":"Jazz","c":["A#M7","BM7","Cm7b5","C#dim7","Em7b5/D","Fm7/D#","Edim7","F7/D#","F#dim7","Gm7/F","G#M7/D#","F7/D#"],"v":["A3 F3 D3 A#2","A#3 F#3 D#3 B2","A#3 F#3 D#3 C3","A#3 G3 E3 C#3","A#3 G3 E3 D3","C4 G#3 F3 D#3","C#4 A#3 G3 E3","C4 A3 F3 D#3","D#4 C4 A3 F#3","D4 A#3 G3 F3","C4 G#3 G3 D#3","C4 A3 F3 D#3"]},{"n":93,"g":"Jazz","c":["A#M7/A","G#6","Am7","A#M7","Gadd11/B","FM7/C","A7/C","D7/C","D#M7b5/D","Cadd9/D","Fadd9","Cdim7"],"v":["F3 D3 A#2 A2","F3 D#3 C3 G#2","G3 E3 C3 A2","A3 F3 D3 A#2","G3 D3 C3 B2","A3 F3 E3 C3","A3 G3 E3 C#3","A3 F#3 D3 C3","A3 G3 D#3 D3","C4 G3 E3 D3","C4 A3 G3 F3","A3 F#3 D#3 C3"]},{"n":94,"g":"Jazz","c":["CM7","DbM7","Dm7","Ebm7add13","Em7/b13","Fm7","F#m7/b5","G9sus","G#dim7","Am6","F/Bb","Bdim7"],"v":["B4 E4 G3 C3","C5 F4 G#3 C#3","C5 F4 A3 D3","C5 F#4 C#4 D#3","C5 G4 D4 E3","C5 G#4 D#4 F3","C5 A4 E4 F#3","A4 F4 C4 G3","B4 F4 D4 G#3","C5 F#4 E4 A3","A4 F4 C4 A#2","G#4 D4 F3 B2"]},{"n":95,"g":"Classical","c":["FM7/E","Bdim/D","Am","G#dim7","C/G","Amb9/C","Fadd9/C","Dm","C/G","C/G","Fadd9/G","Ddim/G"],"v":["A4 F4 E4","B4 F4 D4","C5 E4 A3","D5 F4 B3 G#3","E5 E4 C4 G4","A5 A#4 E4 C4","G5 A4 F4 C4","F5 A4 F4 D3","E5 G4 C4 G2","C5 E4 G3 G2","A4 F4 C4 G2","G#4 F4 D4 G2"]},{"n":96,"g":"Classical","c":["Am","Bm7/A","Fdim/B","C/E","A7/G","Dm7","D#aug","E","F","D/F#","C/G","E/G#"],"v":["E4 C4 A3 A2","D4 B3 A3 A2","F4 B3 G#3 B2","E4 C4 G3 E3","E4 C#4 A3 G3","F4 C4 A3 D3","D#4 B3 G3 D#3","E4 B3 G#3 E3","F4 C4 A3 F3","D4 A3 F#3 F#2","E4 C4 G3 G2","E4 B3 G#3 G#2"]},{"n":97,"g":"Classical","c":["F#/C#","F#/A#","G#m7","A6","F#/C#","Bsus2","G#/C","C#7","A#7/D","F#6sus4/C#","C#m7","C#7"],"v":["F#4 A#3 F#3 C#3","F#4 C#4 F#3 A#2","F#4 B3 F#3 G#2","F#4 C#4 E3 A2","F#4 C#4 F#3 A#2","F#4 C#4 F#3 B2","G#4 D#4 G#3 C3","F4 B3 G#3 C#3","F4 A#3 G#3 D3","D#4 B3 F#3 C#3","E4 B3 G#3 C#3","F4 B3 F3 C#3"]},{"n":98,"g":"Classical","c":["Dm","D#M7/D","E7/D","Dm7","D7","Gm/D","G#/D","A/D","A#add9/D","DM7(13)","Csus2/D","G#dim/D"],"v":["D4 A3 F3 D2","D#4 A#3 G3 D2","B3 G#3 E3 D2","C4 A3 F3 D2","C4 A3 F#3 D2","D4 A#3 G3 D2","D#4 C4 G#3 D2","E4 C#4 A3 D2","F4 C4 A#3 D2","F#4 C#4 B3 D2","G4 D4 C4 D2","G#4 D4 B3 D2"]},{"n":99,"g":"Modern","c":["CM13","AM9/C#","Dm13","EbM13","CM9/E","FM13","FmM13","CM9(no3)/","AbMb5/#9","Am11","BbM9","G6/9"],"v":["B3 A3 E3 C3","B3 A3 E3 C#3","C4 B3 F3 D3","D4 C4 G3 D#3","D4 C4 G3 E3","E4 D4 A3 F3","E4 D4 G#3 F3","B4 D4 C4 G3","B4 D4 C4 G#3","D4 G3 C3 A2","D4 A3 C3 A#2","E4 A3 G3 B2"]},{"n":100,"g":"Modern","c":["CM9","Cm9","Dm9","Dm6/9","CM9/E","Dm9/F","D9/F#","Gsus13","G13b9","AbMaj13","AbDimM7","BbM13"],"v":["B4 E4 D4 C3","Bb4 Eb4 D4 C3","C5 F4 E4 D3","B4 F4 E4 D3","B4 D4 C4 E3","C5 E4 D4 F3","C5 E4 D4 F#3","E5 A4 F4 G3","E5 Ab4 F4 G3","E5 Bb4 G4 Ab3","G5 B4 F4 Ab3","A5 D5 G4 Bb3"]}];
+
+const chordProfiles=[
+['maj13',[0,4,7,11,2,5,9]],['13',[0,4,7,10,2,5,9]],['m13',[0,3,7,10,2,5,9]],
+['maj9',[0,4,7,11,2]],['9',[0,4,7,10,2]],['m9',[0,3,7,10,2]],['m(maj7)',[0,3,7,11]],
+['6/9',[0,4,7,9,2]],['m6/9',[0,3,7,9,2]],['7sus4',[0,5,7,10]],['add9',[0,4,7,2]],
+['madd9',[0,3,7,2]],['maj7',[0,4,7,11]],['m7b5',[0,3,6,10]],['dim7',[0,3,6,9]],
+['m7',[0,3,7,10]],['7',[0,4,7,10]],['6',[0,4,7,9]],['m6',[0,3,7,9]],['',[0,4,7]],
+['m',[0,3,7]],['dim',[0,3,6]],['aug',[0,4,8]],['sus2',[0,2,7]],['sus4',[0,5,7]],['5',[0,7]]
+];
+
+
+async function ensureAudio(){
+ if(!audioContext){
+  const Ctx=window.AudioContext||window.webkitAudioContext;
+  if(!Ctx)throw new Error('Web Audio非対応');
+  audioContext=new Ctx({latencyHint:'interactive'});
+ }
+ if(audioContext.state==='suspended')await audioContext.resume();
+ return audioContext;
+}
+
+function audioDeviceLabel(device,index,prefix){
+ return device.label?.trim()||`${prefix} ${index+1}`;
+}
+
+function audioInputScore(device){
+ const label=(device.label||'').trim();
+ if(/(^|\b)J[\s-]?6(\b|$)/i.test(label))return 120;
+ if(/Roland.*J[\s-]?6|J[\s-]?6.*Roland/i.test(label))return 115;
+ if(/Roland|AIRA/i.test(label))return 100;
+ if(/USB Audio CODEC|USB Audio Device|USB PnP Sound/i.test(label))return 85;
+ if(/USB.*Audio|Audio.*USB/i.test(label))return 80;
+ if(/Digital (Input|Audio|Stereo)|IEC958|S\/PDIF/i.test(label))return 65;
+ if(/Interface|Scarlett|Rubix|UA-|Line/i.test(label))return 45;
+ if(/Built.?in|Internal|Webcam|Camera|Microphone Array/i.test(label))return -40;
+ if(!label)return 10;
+ return 20;
+}
+
+function isJ6AudioDevice(device){
+ return audioInputScore(device)>=80;
+}
+
+function preferredJ6Device(inputs){
+ return [...inputs]
+  .filter(device=>device.deviceId&&device.deviceId!=='default'&&device.deviceId!=='communications')
+  .sort((a,b)=>audioInputScore(b)-audioInputScore(a))[0]
+  ||inputs.find(device=>device.deviceId==='default')
+  ||inputs[0]
+  ||null;
+}
+
+function preferredAnalogDevice(inputs){
+ return inputs.find(device=>
+  !isJ6AudioDevice(device)&&
+  /Audio|Interface|Line|Scarlett|Rubix|UA-|MIX|USB/i.test(device.label||'')
+ )||inputs.find(device=>!isJ6AudioDevice(device))||inputs[0]||null;
+}
+
+async function requestAudioPermission(){
+ const stream=await navigator.mediaDevices.getUserMedia({
+  audio:{
+   echoCancellation:false,
+   noiseSuppression:false,
+   autoGainControl:false
+  }
+ });
+ return stream;
+}
+
+async function enumerateAudioDevices(){
+ const devices=await navigator.mediaDevices.enumerateDevices();
+ audioInputCatalog=devices.filter(device=>device.kind==='audioinput');
+ audioOutputCatalog=devices.filter(device=>device.kind==='audiooutput');
+ return {inputs:audioInputCatalog,outputs:audioOutputCatalog};
+}
+
+function populateAudioInputSelect(preferredId=''){
+ const select=$('audioInputDevice');
+ const previous=preferredId||select.value;
+ select.innerHTML='';
+
+ audioInputCatalog.forEach((device,index)=>{
+  const score=audioInputScore(device);
+  const hint=score>=80?' [USB候補]':score<0?' [内蔵]':'';
+  select.add(new Option(
+   `[IN] ${audioDeviceLabel(device,index,'Audio input')}${hint}`,
+   device.deviceId
+  ));
+ });
+
+ const mode=$('audioInputMode').value;
+ const preferred=mode==='j6usb'
+  ? preferredJ6Device(audioInputCatalog)
+  : preferredAnalogDevice(audioInputCatalog);
+
+ if(previous&&audioInputCatalog.some(device=>device.deviceId===previous)){
+  select.value=previous;
+ }else if(preferred){
+  select.value=preferred.deviceId;
+ }else{
+  select.add(new Option('入力機器なし',''));
+  select.value='';
+ }
+
+ const selected=audioInputCatalog.find(device=>device.deviceId===select.value);
+ $('audioInputStatus').textContent=`INPUT：${selected?.label||'—'}`;
+
+ if(mode==='j6usb'){
+  $('audioRouteNote').textContent=
+   'J-6はOSによりUSB Audio、Digital Input、名称なしの入力として表示される場合があります。選択中の入力へ接続します。';
+ }else{
+  $('audioRouteNote').textContent=
+   'J-6 MIX OUT/PHONESをオーディオインターフェースの入力へ接続してください。';
+ }
+}
+
+function populateAudioOutputSelect(preferredId=''){
+ const select=$('audioOutputDevice');
+ const previous=preferredId||select.value||'default';
+ select.innerHTML='<option value="default">OS DEFAULT</option>';
+
+ audioOutputCatalog.forEach((device,index)=>{
+  select.add(new Option(
+   `[OUT] ${audioDeviceLabel(device,index,'Audio output')}`,
+   device.deviceId
+  ));
+ });
+
+ select.value=[...select.options].some(option=>option.value===previous)
+  ? previous
+  :'default';
+}
+
+async function listAudioInputs(requestPermission=false){
+ let permissionStream=null;
+ try{
+  if(!navigator.mediaDevices?.enumerateDevices)throw new Error('MediaDevices非対応');
+
+  if(requestPermission){
+   permissionStream=await requestAudioPermission();
+  }
+
+  const previousInput=$('audioInputDevice').value;
+  const previousOutput=$('audioOutputDevice').value;
+  await enumerateAudioDevices();
+  populateAudioInputSelect(previousInput);
+  populateAudioOutputSelect(previousOutput);
+
+  const mode=$('audioInputMode').value;
+  const selected=selectedAudioInput();
+  const found=Boolean(selected);
+  const identified=selected&&isJ6AudioDevice(selected);
+
+  if(!found){
+   $('usbAudioStatus').textContent='INPUT NOT FOUND';
+   $('usbAudioStatus').style.color='var(--red)';
+  }else if(mode==='j6usb'&&!identified){
+   $('usbAudioStatus').textContent='USB候補を選択';
+   $('usbAudioStatus').style.color='var(--accent2)';
+  }else{
+   $('usbAudioStatus').textContent='DEVICE READY';
+   $('usbAudioStatus').style.color='var(--green)';
+  }
+  return permissionStream;
+ }catch(error){
+  if(permissionStream)permissionStream.getTracks().forEach(track=>track.stop());
+  $('usbAudioStatus').textContent=error.message;
+  $('usbAudioStatus').style.color='var(--red)';
+  return null;
+ }
+}
+
+async function listAudioOutputs(){
+ try{
+  if(!navigator.mediaDevices?.enumerateDevices)throw new Error('MediaDevices非対応');
+  await enumerateAudioDevices();
+  populateAudioOutputSelect();
+  $('audioOutputStatus').textContent=`OUTPUT：${$('audioOutputDevice').selectedOptions[0]?.textContent||'OS DEFAULT'}`;
+ }catch(error){
+  $('audioOutputStatus').textContent=`OUTPUT ERROR：${error.message}`;
+ }
+}
+
+async function applyAudioOutput(){
+ const player=$('audioBypassPlayer');
+ const id=$('audioOutputDevice').value;
+
+ try{
+  if(typeof player.setSinkId==='function'){
+   await player.setSinkId(id==='default'?'':id);
+   $('audioOutputStatus').textContent=
+    `OUTPUT：${$('audioOutputDevice').selectedOptions[0]?.textContent||'OS DEFAULT'}`;
+   return true;
+  }
+
+  if(audioContext&&typeof audioContext.setSinkId==='function'){
+   await audioContext.setSinkId(id==='default'?'':id);
+   $('audioOutputStatus').textContent=
+    `OUTPUT：${$('audioOutputDevice').selectedOptions[0]?.textContent||'OS DEFAULT'}`;
+   return true;
+  }
+
+  $('audioOutputStatus').textContent='OUTPUT：OS設定を使用';
+  return false;
+ }catch(error){
+  $('audioOutputStatus').textContent=`OUTPUT ERROR：${error.message}`;
+  return false;
+ }
+}
+
+async function selectAudioOutput(){
+ await applyAudioOutput();
+}
+
+async function requestAudioOutput(){
+ try{
+  if(navigator.mediaDevices.selectAudioOutput){
+   const device=await navigator.mediaDevices.selectAudioOutput();
+   await enumerateAudioDevices();
+   populateAudioOutputSelect(device.deviceId);
+   $('audioOutputDevice').value=device.deviceId;
+  }else{
+   await listAudioOutputs();
+  }
+  await applyAudioOutput();
+ }catch(error){
+  $('audioOutputStatus').textContent=`OUTPUT ERROR：${error.message}`;
+ }
+}
+
+function selectedAudioInput(){
+ return audioInputCatalog.find(device=>device.deviceId===$('audioInputDevice').value)||null;
+}
+
+async function openSelectedInput(probeStream=null){
+ const selected=selectedAudioInput();
+ if(!selected)throw new Error('入力機器を選択してください');
+
+ const probeTrack=probeStream?.getAudioTracks?.()[0]||null;
+ const probeDeviceId=probeTrack?.getSettings?.().deviceId||'';
+
+ if(probeStream&&probeDeviceId===selected.deviceId){
+  return probeStream;
+ }
+
+ if(probeStream)probeStream.getTracks().forEach(track=>track.stop());
+
+ return navigator.mediaDevices.getUserMedia({
+  audio:{
+   deviceId:{exact:selected.deviceId},
+   echoCancellation:false,
+   noiseSuppression:false,
+   autoGainControl:false,
+   channelCount:{ideal:2},
+   sampleRate:{ideal:48000},
+   sampleSize:{ideal:24}
+  }
+ });
+}
+
+async function startAudioInput(){
+ let probeStream=null;
+ try{
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('音声入力非対応');
+
+  stopAudioInput(false);
+  $('usbAudioStatus').textContent='CONNECTING';
+  $('usbAudioStatus').style.color='var(--accent2)';
+
+  probeStream=await listAudioInputs(true);
+  if(!probeStream)throw new Error('入力許可または機器取得に失敗しました');
+
+  const mode=$('audioInputMode').value;
+  const selectedBeforeOpen=selectedAudioInput();
+  if(!selectedBeforeOpen){
+   probeStream.getTracks().forEach(track=>track.stop());
+   probeStream=null;
+   throw new Error('利用できる音声入力がありません');
+  }
+
+  inputStream=await openSelectedInput(probeStream);
+  probeStream=null;
+
+  const context=await ensureAudio();
+  inputSource=context.createMediaStreamSource(inputStream);
+
+  inputAnalyser=context.createAnalyser();
+  inputAnalyser.fftSize=4096;
+  inputAnalyser.smoothingTimeConstant=.45;
+  fftRenderDisabled=false;
+  fftRenderWarningShown=false;
+
+  // Keep the analyser graph alive without producing sound.
+  inputAnalysisSink=context.createGain();
+  inputAnalysisSink.gain.value=0;
+  inputSource.connect(inputAnalyser);
+  inputAnalyser.connect(inputAnalysisSink);
+  inputAnalysisSink.connect(context.destination);
+
+  // Independent bypass route through an HTMLAudioElement.
+  inputMonitorGain=context.createGain();
+  inputMonitorGain.gain.value=0;
+  inputBypassDestination=context.createMediaStreamDestination();
+  inputSource.connect(inputMonitorGain);
+  inputMonitorGain.connect(inputBypassDestination);
+
+  const player=$('audioBypassPlayer');
+  player.srcObject=inputBypassDestination.stream;
+  player.volume=1;
+  await applyAudioOutput();
+
+  const track=inputStream.getAudioTracks()[0];
+  const settings=track.getSettings();
+  const selected=selectedAudioInput();
+
+  const inputLabel=selected?.label||track.label||'名称なしの音声入力';
+  const confirmedJ6=isJ6AudioDevice(selected||{label:track.label||''});
+  $('audioInputStatus').textContent=`INPUT：${inputLabel}`;
+  $('audioTrackStatus').textContent=
+   `FORMAT：${settings.sampleRate||context.sampleRate} Hz / ${settings.channelCount||1} ch`;
+  $('usbAudioStatus').textContent=
+   mode==='j6usb'&&!confirmedJ6?'CONNECTED（名称未確認）':'CONNECTED';
+  $('usbAudioStatus').style.color=
+   mode==='j6usb'&&!confirmedJ6?'var(--accent2)':'var(--green)';
+  $('enableAudioInput').textContent='RECONNECT';
+  $('audioSignalStatus').textContent='WAITING';
+  $('audioSignalStatus').style.color='var(--accent2)';
+
+  track.addEventListener('ended',()=>{
+   $('usbAudioStatus').textContent='DISCONNECTED';
+   $('usbAudioStatus').style.color='var(--red)';
+   stopAudioInput(false);
+  },{once:true});
+
+  // Monitoring is the default route once the selected input is connected.
+  await toggleInputMonitor();
+  lastAudioSignalAt=performance.now();
+  drawAudioInput();
+ }catch(error){
+  if(probeStream)probeStream.getTracks().forEach(track=>track.stop());
+  stopAudioInput(false);
+  $('usbAudioStatus').textContent=error.message;
+  $('usbAudioStatus').style.color='var(--red)';
+ }
+}
+
+function stopAudioInput(updateStatus=true){
+ inputMonitorEnabled=false;
+ cancelAnimationFrame(inputWaveFrame);
+ inputWaveFrame=null;
+
+ const player=$('audioBypassPlayer');
+ if(player){
+  player.pause();
+  player.srcObject=null;
+ }
+
+ if(inputMonitorGain&&audioContext){
+  try{inputMonitorGain.gain.setValueAtTime(0,audioContext.currentTime)}catch{}
+ }
+
+ if(inputStream)inputStream.getTracks().forEach(track=>track.stop());
+ if(inputSource)try{inputSource.disconnect()}catch{}
+ if(inputAnalyser)try{inputAnalyser.disconnect()}catch{}
+ if(inputAnalysisSink)try{inputAnalysisSink.disconnect()}catch{}
+ if(inputMonitorGain)try{inputMonitorGain.disconnect()}catch{}
+ if(inputBypassDestination)try{inputBypassDestination.disconnect()}catch{}
+
+ inputStream=null;
+ inputSource=null;
+ inputAnalyser=null;
+ inputAnalysisSink=null;
+ inputMonitorGain=null;
+ inputBypassDestination=null;
+
+ $('monitorAudio').textContent='BYPASS OFF';
+ $('monitorAudio').classList.remove('active');
+ $('enableAudioInput').textContent='CONNECT';
+ $('audioInputMeter').style.width='0%';
+ $('audioSignalStatus').textContent='NO SIGNAL';
+ $('audioSignalStatus').style.color='var(--muted)';
+ $('audioTrackStatus').textContent='FORMAT：—';
+
+ if(updateStatus){
+  $('usbAudioStatus').textContent='停止';
+  $('usbAudioStatus').style.color='var(--muted)';
+ }
+ drawEmptyAudioCanvas();
+}
+
+async function toggleInputMonitor(){
+ if(!inputStream||!inputMonitorGain||!inputBypassDestination){
+  $('audioOutputStatus').textContent='先に入力をCONNECTしてください';
+  return;
+ }
+
+ inputMonitorEnabled=!inputMonitorEnabled;
+ const player=$('audioBypassPlayer');
+
+ if(inputMonitorEnabled){
+  await ensureAudio();
+  await applyAudioOutput();
+  inputMonitorGain.gain.setTargetAtTime(
+   +$('monitorLevel').value,
+   audioContext.currentTime,
+   .015
+  );
+  try{
+   await player.play();
+  }catch(error){
+   inputMonitorEnabled=false;
+   inputMonitorGain.gain.setValueAtTime(0,audioContext.currentTime);
+   $('audioOutputStatus').textContent=`BYPASS ERROR：${error.message}`;
+  }
+ }else{
+  inputMonitorGain.gain.setTargetAtTime(0,audioContext.currentTime,.015);
+  player.pause();
+ }
+
+ $('monitorAudio').textContent=inputMonitorEnabled?'BYPASS ON':'BYPASS OFF';
+ $('monitorAudio').classList.toggle('active',inputMonitorEnabled);
+}
+
+function drawEmptyAudioCanvas(){
+ for(const id of ['audioWave','audioFFT']){
+  const canvas=$(id);
+  const context=canvas?.getContext?.('2d');
+  if(!canvas||!context)continue;
+  const {width,height,ratio}=sizeAudioCanvas(canvas,context);
+  drawAudioGrid(context,width,height,id==='audioWave');
+  context.fillStyle='#69717e';
+  context.font='11px ui-monospace, monospace';
+  context.fillText(id==='audioWave'?'NO WAVEFORM':'NO SPECTRUM',8,16);
+ }
+}
+
+function sizeAudioCanvas(canvas,context){
+ const rect=canvas.getBoundingClientRect();
+ const ratio=Math.min(2,window.devicePixelRatio||1);
+ const width=Math.max(120,Math.round(rect.width));
+ const height=Math.max(100,Math.round(rect.height));
+ if(canvas.width!==Math.round(width*ratio))canvas.width=Math.round(width*ratio);
+ if(canvas.height!==Math.round(height*ratio))canvas.height=Math.round(height*ratio);
+ context.setTransform(ratio,0,0,ratio,0,0);
+ return {width,height,ratio};
+}
+
+function drawAudioGrid(context,width,height,centerLine=false){
+ context.fillStyle='#090a0c';
+ context.fillRect(0,0,width,height);
+ context.strokeStyle='#242932';
+ context.lineWidth=1;
+ for(let x=0;x<width;x+=50){
+  context.beginPath();context.moveTo(x,0);context.lineTo(x,height);context.stroke();
+ }
+ for(let y=0;y<height;y+=40){
+  context.beginPath();context.moveTo(0,y);context.lineTo(width,y);context.stroke();
+ }
+ if(centerLine){
+  context.strokeStyle='#343943';
+  context.beginPath();context.moveTo(0,height/2);context.lineTo(width,height/2);context.stroke();
+ }
+}
+
+function inputLabelForStatus(){
+ const selected=selectedAudioInput();
+ return selected?.label||'選択入力を確認';
+}
+
+function drawAudioInput(){
+ cancelAnimationFrame(inputWaveFrame);
+ const canvas=$('audioWave'),fftCanvas=$('audioFFT');
+ const context=canvas?.getContext?.('2d'),fftContext=fftCanvas?.getContext?.('2d');
+ if(!canvas||!fftCanvas||!context||!fftContext||!inputAnalyser){
+  drawEmptyAudioCanvas();
+  return;
+ }
+ const timeData=new Float32Array(inputAnalyser?.fftSize||4096);
+ const frequencyData=new Uint8Array(inputAnalyser?.frequencyBinCount||2048);
+
+ const render=()=>{
+  const waveSize=sizeAudioCanvas(canvas,context);
+  const fftSize=sizeAudioCanvas(fftCanvas,fftContext);
+  const {width,height}=waveSize;
+  drawAudioGrid(context,width,height,true);
+  drawAudioGrid(fftContext,fftSize.width,fftSize.height,false);
+
+  let rms=0;
+  if(inputAnalyser){
+   if(inputAnalyser.getFloatTimeDomainData){
+    inputAnalyser.getFloatTimeDomainData(timeData);
+   }else{
+    const byteData=new Uint8Array(inputAnalyser.fftSize);
+    inputAnalyser.getByteTimeDomainData(byteData);
+    for(let i=0;i<byteData.length;i++)timeData[i]=(byteData[i]-128)/128;
+   }
+   let fftReady=false;
+   if(!fftRenderDisabled){
+    try{
+     if(typeof inputAnalyser.getByteFrequencyData!=='function')throw new Error('FFT API非対応');
+     inputAnalyser.getByteFrequencyData(frequencyData);
+     fftReady=true;
+    }catch(error){
+     fftRenderDisabled=true;
+     if(!fftRenderWarningShown){
+      console.warn('FFT display disabled:',error);
+      fftRenderWarningShown=true;
+     }
+    }
+   }
+
+   let dcOffset=0;
+   for(const sample of timeData)dcOffset+=sample;
+   dcOffset/=Math.max(1,timeData.length);
+   for(const sample of timeData){
+    const centered=sample-dcOffset;
+    rms+=centered*centered;
+   }
+   rms=Math.sqrt(rms/timeData.length);
+
+   if(rms>.0008)lastAudioSignalAt=performance.now();
+   const signal=performance.now()-lastAudioSignalAt<900;
+
+   $('audioInputMeter').style.width=`${Math.min(100,rms*900)}%`;
+   $('audioSignalStatus').textContent=signal?'SIGNAL':`NO SIGNAL / ${inputLabelForStatus()}`;
+   $('audioSignalStatus').style.color=signal?'var(--green)':'var(--red)';
+
+   context.strokeStyle=signal?'#ff6a35':'#647080';
+   context.lineWidth=2;
+   context.beginPath();
+   const waveformZoom=3;
+   for(let i=0;i<timeData.length;i++){
+    const x=i/(timeData.length-1)*width;
+    const centeredSample=timeData[i]-dcOffset;
+    const y=Math.max(2,Math.min(height-2,height/2-centeredSample*(height*.44)*waveformZoom));
+    if(i===0)context.moveTo(x,y);
+    else context.lineTo(x,y);
+   }
+   context.stroke();
+
+   if(fftReady){
+    try{
+     const pointsCount=Math.max(48,Math.min(128,Math.floor(fftSize.width/4)));
+     const nyquist=Math.max(1,(audioContext?.sampleRate||48000)/2);
+     const minHz=30,maxHz=Math.max(minHz+1,Math.min(20000,nyquist));
+     const points=[];
+     for(let point=0;point<pointsCount;point++){
+      const lowHz=minHz*Math.pow(maxHz/minHz,point/pointsCount);
+      const highHz=minHz*Math.pow(maxHz/minHz,(point+1)/pointsCount);
+      const lowBin=Math.min(frequencyData.length-1,Math.max(1,Math.floor(lowHz/nyquist*frequencyData.length)));
+      const highBin=Math.min(frequencyData.length,Math.max(lowBin+1,Math.ceil(highHz/nyquist*frequencyData.length)));
+      let peak=0;
+      for(let bin=lowBin;bin<highBin;bin++)peak=Math.max(peak,frequencyData[bin]||0);
+      const level=Math.max(0,Math.min(1,peak/255));
+      points.push({
+       x:point/(pointsCount-1)*fftSize.width,
+       y:fftSize.height-level*fftSize.height*.9,
+       level
+      });
+     }
+
+     const spectrumPath=()=>{
+      fftContext.beginPath();
+      points.forEach((point,index)=>{
+       if(index===0)fftContext.moveTo(point.x,point.y);
+       else fftContext.lineTo(point.x,point.y);
+      });
+     };
+
+     // Translucent spectrum body.
+     const fill=fftContext.createLinearGradient(0,0,0,fftSize.height);
+     fill.addColorStop(0,'rgba(255,106,42,.72)');
+     fill.addColorStop(.42,'rgba(57,169,255,.38)');
+     fill.addColorStop(1,'rgba(14,30,46,.08)');
+     spectrumPath();
+     fftContext.lineTo(fftSize.width,fftSize.height);
+     fftContext.lineTo(0,fftSize.height);
+     fftContext.closePath();
+     fftContext.fillStyle=signal?fill:'rgba(100,112,128,.16)';
+     fftContext.fill();
+
+     // Wide glow plus a crisp analyzer trace.
+     fftContext.save();
+     spectrumPath();
+     fftContext.strokeStyle=signal?'rgba(57,169,255,.34)':'rgba(100,112,128,.35)';
+     fftContext.lineWidth=7;
+     fftContext.shadowColor=signal?'#39a9ff':'transparent';
+     fftContext.shadowBlur=13;
+     fftContext.stroke();
+     fftContext.restore();
+
+     const trace=fftContext.createLinearGradient(0,0,fftSize.width,0);
+     trace.addColorStop(0,'#39a9ff');
+     trace.addColorStop(.55,'#65d5ff');
+     trace.addColorStop(1,'#ff6a2a');
+     spectrumPath();
+     fftContext.strokeStyle=signal?trace:'#647080';
+     fftContext.lineWidth=1.8;
+     fftContext.lineJoin='round';
+     fftContext.lineCap='round';
+     fftContext.stroke();
+
+     fftContext.fillStyle='#8f98a5';
+     fftContext.font='10px ui-monospace, monospace';
+     fftContext.fillText('30 Hz',5,12);
+     fftContext.textAlign='center';
+     fftContext.fillText('1 kHz',fftSize.width*.54,12);
+     fftContext.textAlign='right';
+     fftContext.fillText(`${Math.round(maxHz/1000)} kHz`,fftSize.width-5,12);
+     fftContext.textAlign='left';
+    }catch(error){
+     fftRenderDisabled=true;
+     if(!fftRenderWarningShown){
+      console.warn('FFT rendering disabled:',error);
+      fftRenderWarningShown=true;
+     }
+    }
+   }else if(fftRenderDisabled){
+    fftContext.fillStyle='#ff9a72';
+    fftContext.font='11px ui-monospace, monospace';
+    fftContext.fillText('FFT DISPLAY UNAVAILABLE',8,16);
+   }
+  }
+
+  inputWaveFrame=requestAnimationFrame(render);
+ };
+
+ render();
+}
+
+function initializeEmbeddedChordSets(){
+ officialDataReady=Array.isArray(chordSets)&&chordSets.length===100&&chordSets.every((s,i)=>
+  s.n===i+1&&Array.isArray(s.c)&&s.c.length===12&&Array.isArray(s.v)&&s.v.length===12&&s.v.every(Boolean)
+ );
+ $('officialSetStatus').textContent=officialDataReady?'公式100セット・HTML内蔵':'内蔵データ検証エラー';
+ $('officialSetStatus').style.color=officialDataReady?'var(--green)':'var(--red)';
+ $('officialSetDetail').textContent=officialDataReady
+  ?'Roland J-6 Version 1.02のコード・セット1～100をHTML内へ保存済みです。起動時の通信はありません。'
+  :'内蔵コードセットが100件揃っていないため判定を停止しています。';
+ $('chordSetSelect').innerHTML='';
+ chordSets.forEach(s=>$('chordSetSelect').add(new Option(`${s.n}. ${s.g||'—'}`,s.n)));
+ $('chordSetSelect').value='1';
+ renderChordSet();renderChordTable();resetPlayDetector();
+}
+
+function fillChannels(){
+ for(let i=1;i<=16;i++){
+  $('playChannel').add(new Option(`Channel ${i}`,i-1));
+  $('inputChannel').add(new Option(`Channel ${i}`,i-1));
+  $('pcChannel').add(new Option(`Channel ${i}`,i-1));
+ }
+ $('playChannel').value='0';$('inputChannel').value='auto';$('pcChannel').value='15';
+}
+function noteName(n){return `${noteNames[(n%12+12)%12]}${Math.floor(n/12)-1}`}
+function parseNote(s){
+ const m=s.match(/^([A-Ga-g])([#b]?)(-?\d+)$/);if(!m)return null;
+ const base={C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1].toUpperCase()];
+ const acc=m[2]==='#'?1:m[2]==='b'?-1:0;
+ return (parseInt(m[3])+1)*12+base+acc;
+}
+function log(dir,type,detail,data=[]){
+ const t=new Date().toLocaleTimeString('ja-JP',{hour12:false});
+ logEntries.unshift({t,dir,type,detail,data:[...data]});logEntries.splice(300);
+ $('monitor').innerHTML=logEntries.map(e=>`<div class="log-line"><span>${e.t}</span><span class="${e.dir==='IN'?'log-in':'log-out'}">${e.dir} ${e.type}</span><span>${e.detail} <small>${e.data.map(x=>x.toString(16).padStart(2,'0')).join(' ')}</small></span></div>`).join('');
+}
+function setStatus(text,kind=''){
+ $('statusText').textContent=text;$('statusDot').className='status-dot'+(kind?` ${kind}`:'');
+}
+
+async function resetMidiAccess(){
+ if(midiReconnectBusy)return;
+ midiReconnectBusy=true;
+ try{
+  clearInterval(midiWatchdogTimer);
+  clearTimeout(midiRefreshTimer);
+  if(midiAccess)midiAccess.onstatechange=null;
+  await closeMidiPorts();
+  midiAccess=null;
+  midiInput=null;
+  midiOutput=null;
+  resetMidiChannelDetection();
+  $('midiIn').innerHTML='<option value="auto">AUTO J-6 IN</option>';
+  $('midiOut').innerHTML='<option value="auto">AUTO J-6 OUT</option>';
+  $('midiIn').disabled=true;
+  $('midiOut').disabled=true;
+  $('enableMidi').disabled=false;
+  $('enableMidi').textContent='MIDI ON';
+  $('enableMidi').classList.add('device-refresh-attention');
+  $('panic').disabled=true;
+  setStatus('MIDI OFF');
+  setMidiWatchdogStatus('OFF');
+ }catch(error){
+  setStatus(`MIDI reset error: ${error.message}`,'err');
+  setMidiWatchdogStatus('RESET ERROR','err');
+ }finally{
+  midiReconnectBusy=false;
+ }
+}
+
+async function enableMidi(){
+ if(midiReconnectBusy)return;
+ midiReconnectBusy=true;
+ try{
+  if(!navigator.requestMIDIAccess)throw new Error('Web MIDI非対応');
+  if(!midiAccess){
+   midiAccess=await navigator.requestMIDIAccess({sysex:false});
+   midiAccess.onstatechange=scheduleMidiRefresh;
+  }
+  await refreshDevices();
+  $('enableMidi').disabled=true;
+  $('enableMidi').textContent='MIDI READY';
+  $('enableMidi').classList.remove('device-refresh-attention');
+  $('panic').disabled=false;
+  setMidiWatchdogStatus('READY','ok');
+ }catch(error){
+  setStatus(`MIDI error: ${error.message}`,'err');
+  setMidiWatchdogStatus('ERROR','err');
+ }finally{
+  midiReconnectBusy=false;
+ }
+}
+
+function setMidiWatchdogStatus(message,state=''){
+ const el=$('midiWatchdogStatus');
+ if(!el)return;
+ el.textContent=message;
+ el.style.color=state==='ok'?'var(--green)':state==='err'?'var(--red)':'var(--accent2)';
+}
+
+async function closeMidiPorts(){
+ if(!midiAccess)return;
+ for(const port of [...midiAccess.inputs.values(),...midiAccess.outputs.values()]){
+  try{
+   if(port.type==='input')port.onmidimessage=null;
+   if(port.connection==='open')await port.close();
+  }catch(error){
+   console.warn('MIDI close failed',port.name,error);
+  }
+ }
+ midiInputListeners.clear();
+ midiInput=null;
+ midiOutput=null;
+}
+
+async function hardReconnectMidi(reason='RECONNECT'){
+ if(!midiAccess){
+  await enableMidi();
+  return;
+ }
+ if(midiReconnectBusy)return;
+ midiReconnectBusy=true;
+ try{
+  setMidiWatchdogStatus(reason);
+  await closeMidiPorts();
+  // Give the OS/browser time to release the old USB MIDI endpoints.
+  await new Promise(resolve=>setTimeout(resolve,120));
+  await refreshDevices();
+  if(!midiInput&&!midiOutput){
+   scheduleMidiRefresh();
+  }else{
+   setMidiWatchdogStatus('READY','ok');
+  }
+ }catch(error){
+  setStatus(`MIDI reconnect error: ${error.message}`,'err');
+  setMidiWatchdogStatus('ERROR','err');
+ }finally{
+  midiReconnectBusy=false;
+ }
+}
+
+function startMidiWatchdog(){
+ clearInterval(midiWatchdogTimer);
+ setMidiWatchdogStatus('READY','ok');
+}
+
+function scheduleMidiRefresh(event){
+ clearTimeout(midiRefreshTimer);
+ const port=event?.port;
+ if(port?.state==='disconnected'){
+  setMidiWatchdogStatus('再接続待ち');
+  if(port.type==='input'){
+   activeNotes.clear();
+   pointerNotes.clear();
+   updateHarmony();
+  }
+ }
+ midiReconnectAttempts=0;
+
+ const attempt=()=>{
+  const delay=midiReconnectDelays[Math.min(midiReconnectAttempts,midiReconnectDelays.length-1)];
+  midiRefreshTimer=setTimeout(async()=>{
+   if(!midiAccess)return;
+   if(midiReconnectBusy){
+    attempt();
+    return;
+   }
+   midiReconnectBusy=true;
+  try{
+   await refreshDevices();
+   const connected=Boolean(midiInput||midiOutput);
+   if(connected){
+    midiReconnectAttempts=0;
+    setMidiWatchdogStatus('READY','ok');
+    return;
+   }
+   midiReconnectAttempts++;
+   if(midiReconnectAttempts<midiReconnectDelays.length)attempt();
+  }catch(error){
+   setMidiWatchdogStatus('DEVICE ERROR','err');
+   midiReconnectAttempts++;
+   if(midiReconnectAttempts<midiReconnectDelays.length)attempt();
+  }finally{
+   midiReconnectBusy=false;
+  }
+  },delay);
+ };
+ attempt();
+}
+
+async function refreshDevices(){
+ if(!midiAccess)return;
+ // A disconnected Web MIDI port can remain in the map after USB replugging.
+ // Never select that stale object; the newly connected endpoint may have the
+ // same display name but a different id.
+ const ins=[...midiAccess.inputs.values()].filter(p=>p.type==='input'&&p.state==='connected');
+ const outs=[...midiAccess.outputs.values()].filter(p=>p.type==='output'&&p.state==='connected');
+ const savedIn=localStorage.getItem('j6-midi-input')||$('midiIn').value||'auto';
+ const savedOut=localStorage.getItem('j6-midi-output')||$('midiOut').value||'auto';
+
+ $('midiIn').innerHTML='';
+ $('midiIn').add(new Option('AUTO J-6 IN','auto'));
+ $('midiIn').add(new Option(`ALL INPUTS (${ins.length})`,'all'));
+ ins.forEach(port=>$('midiIn').add(new Option(`[IN] ${port.name||port.id}`,port.id)));
+
+ $('midiOut').innerHTML='';
+ $('midiOut').add(new Option('AUTO J-6 OUT','auto'));
+ outs.forEach(port=>$('midiOut').add(new Option(`[OUT] ${port.name||port.id}`,port.id)));
+
+ $('midiIn').disabled=!ins.length;
+ $('midiOut').disabled=!outs.length;
+ $('midiIn').value=[...$('midiIn').options].some(o=>o.value===savedIn)?savedIn:'auto';
+ $('midiOut').value=[...$('midiOut').options].some(o=>o.value===savedOut)?savedOut:'auto';
+
+ await connectInput();
+ await connectOutput();
+
+ const inName=midiInput?.name||'なし';
+ const outName=midiOutput?.name||'なし';
+ setStatus(`IN: ${inName} / OUT: ${outName}`,midiInput?'ok':'');
+ setMidiWatchdogStatus(midiInput?'READY':'NO INPUT',midiInput?'ok':'err');
+}
+
+function preferredPort(ports){
+ const connected=ports.filter(p=>p.state==='connected');
+ return connected.find(p=>/\bJ-?6\b/i.test(`${p.name||''} ${p.manufacturer||''}`))||connected[0]||null;
+}
+async function connectInput(){
+ resetMidiChannelDetection();
+ for(const {port} of midiInputListeners.values()){
+  try{port.onmidimessage=null}catch{}
+ }
+ midiInputListeners.clear();
+
+ const selected=$('midiIn').value;
+ const all=[...midiAccess.inputs.values()].filter(p=>p.state==='connected');
+ let ports=[];
+ if(selected==='all')ports=all;
+ else if(selected==='auto'){
+  const p=preferredPort(all);if(p)ports=[p];
+ }else{
+  const p=midiAccess.inputs.get(selected);if(p)ports=[p];
+ }
+
+ for(const port of ports){
+  try{
+   await port.open();
+   const handler=event=>handleMidi(event,port);
+   port.onmidimessage=handler;
+   midiInputListeners.set(port.id,{port,handler});
+  }catch(error){
+   log('IN','ERROR',`${port.name||port.id}: ${error.message}`);
+  }
+ }
+ midiInput=ports[0]||null;
+ localStorage.setItem('j6-midi-input',selected);
+ $('lastMidiInput').textContent=ports.length
+  ?`${ports.map(p=>p.name||p.id).join(' / ')} を監視中`
+  :'入力ポートなし';
+}
+async function connectOutput(){
+ const selected=$('midiOut').value;
+ const all=[...midiAccess.outputs.values()].filter(p=>p.state==='connected');
+ let port=null;
+ if(selected==='auto')port=preferredPort(all);
+ else port=midiAccess.outputs.get(selected)||null;
+ try{
+  if(port)await port.open();
+  midiOutput=port;
+  localStorage.setItem('j6-midi-output',selected);
+ }catch(error){
+  midiOutput=null;
+  setStatus(`MIDI出力を開けません: ${error.message}`,'err');
+ }
+}
+function send(bytes,type='RAW',detail=''){
+ if(!midiOutput){
+  setStatus('MIDI出力ポートが開かれていません','err');return false;
+ }
+ try{
+  if(midiOutput.state!=='connected')throw new Error('出力ポートが切断されています');
+  midiOutput.send(bytes);
+  log('OUT',type,detail,bytes);
+  return true;
+ }catch(error){
+  setStatus(`MIDI送信エラー: ${error.message}`,'err');
+  scheduleMidiRefresh();
+  return false;
+ }
+}
+function noteOn(n,v=100,source='web'){
+ n=Math.max(0,Math.min(127,n));v=Math.max(1,Math.min(127,v));
+ const ch=+$('playChannel').value;
+ if(source==='web')send([0x90|ch,n,v],'NOTE ON',`${noteName(n)} vel ${v}`);
+ activeNotes.set(n,{v,source});setKey(n,true);updateHarmony();
+ const len=+$('noteLength').value;if(source==='web'&&len>0)setTimeout(()=>noteOff(n,'web'),len);
+}
+function noteOff(n,source='web'){
+ const ch=+$('playChannel').value;
+ if(source==='web')send([0x80|ch,n,0],'NOTE OFF',noteName(n));
+ activeNotes.delete(n);setKey(n,false);updateHarmony();
+}
+function panic(){
+ const ch=+$('playChannel').value;
+ if(midiOutput){send([0xB0|ch,123,0],'CC','All Notes Off');send([0xB0|ch,120,0],'CC','All Sound Off')}
+ for(const n of [...activeNotes.keys()])setKey(n,false);
+ activeNotes.clear();pointerNotes.clear();updateHarmony();
+}
+
+function addMidiBurstNote(note,velocity,channel){
+ midiBurst.notes.set(note,{velocity,channel,time:performance.now()});
+ midiBurst.lastAt=performance.now();
+ clearTimeout(midiBurst.timer);
+ midiBurst.timer=setTimeout(finalizeMidiBurst,145);
+ schedulePhraseHarmony(note);
+}
+function chordFromNotes(noteArray){
+ const nums=[...new Set(noteArray)].sort((a,b)=>a-b);
+ if(!nums.length)return null;
+ const pcs=[...new Set(nums.map(n=>n%12))].sort((a,b)=>a-b),bass=nums[0]%12,candidates=[];
+ for(let root=0;root<12;root++)for(const [suffix,ints] of chordProfiles){
+  const target=[...new Set(ints.map(i=>(root+i)%12))];
+  const exact=target.length===pcs.length&&target.every(x=>pcs.includes(x));
+  if(exact)candidates.push({root,name:noteNames[root]+suffix+(bass!==root?'/'+noteNames[bass]:''),score:100+target.length});
+ }
+ if(!candidates.length){
+  for(let root=0;root<12;root++)for(const [suffix,ints] of chordProfiles){
+   const target=[...new Set(ints.map(i=>(root+i)%12))];
+   const hit=target.filter(x=>pcs.includes(x)).length;
+   if(hit>=Math.min(2,target.length))candidates.push({root,name:noteNames[root]+suffix+(bass!==root?'/'+noteNames[bass]:''),score:hit*10-Math.abs(target.length-pcs.length)*3});
+  }
+ }
+ candidates.sort((a,b)=>b.score-a.score);
+ return {name:candidates[0]?.name||`${noteNames[bass]} cluster`,root:candidates[0]?.root??bass,bass,nums,pcs};
+}
+function finalizeMidiBurst(){
+ const entries=[...midiBurst.notes.entries()];
+ midiBurst.notes.clear();
+ if(!entries.length)return;
+ const notes=entries.map(([n])=>n),info=chordFromNotes(notes);
+ if(info){
+  $('liveChord').textContent=info.name;
+  $('liveRoot').textContent=noteNames[info.root];
+  $('liveBass').textContent=noteNames[info.bass];
+  $('liveNotes').textContent=info.nums.map(noteName).join(' · ');
+  const avg=Math.round(entries.reduce((s,[,x])=>s+x.velocity,0)/entries.length);
+  $('liveVelocity').textContent=avg;
+ }
+
+}
+
+function schedulePhraseHarmony(note){
+ const now=performance.now();
+ clearTimeout(phraseHarmony.silenceTimer);
+ phraseHarmony.notes.set(note,now);
+ for(const [storedNote,time] of phraseHarmony.notes){
+  if(now-time>phraseHarmony.windowMs)phraseHarmony.notes.delete(storedNote);
+ }
+ clearTimeout(phraseHarmony.timer);
+ phraseHarmony.timer=setTimeout(finalizePhraseHarmony,phraseHarmony.settleMs);
+}
+
+function scheduleProgressionSilenceReset(){
+ clearTimeout(phraseHarmony.silenceTimer);
+ phraseHarmony.silenceTimer=setTimeout(resetProgressionHistory,phraseHarmony.silenceMs);
+}
+
+function resetProgressionHistory(){
+ clearTimeout(phraseHarmony.timer);
+ clearTimeout(phraseHarmony.silenceTimer);
+ phraseHarmony.notes.clear();
+ chordHistory.length=0;
+ lastHistorySignature='';
+ if($('liveProgression'))$('liveProgression').textContent='—';
+ if($('liveProgressionInsight'))$('liveProgressionInsight').textContent='';
+ if($('history'))$('history').innerHTML='';
+}
+
+function finalizePhraseHarmony(){
+ const now=performance.now();
+ for(const [note,time] of phraseHarmony.notes){
+  if(now-time>phraseHarmony.windowMs)phraseHarmony.notes.delete(note);
+ }
+ const notes=[...phraseHarmony.notes.keys()].sort((a,b)=>a-b);
+ const pitchClasses=new Set(notes.map(note=>((note%12)+12)%12));
+ if(pitchClasses.size<3)return;
+
+ const chord=chordFromNotes(notes);
+ if(chord)recordChordHistory(chord);
+ phraseHarmony.notes.clear();
+}
+
+function matchCurrentJ6Assignment(notes){
+ const set=chordSets.find(item=>item.n===+$('chordSetSelect').value);
+ if(!set)return null;
+ const captured={
+  count:notes.length,
+  intervalSig:normalizedIntervalSignature(notes),
+  pcSig:pitchClassSignature(notes)
+ };
+ for(let index=0;index<12;index++){
+  const target=voicingProfile(set.v[index]);
+  if(captured.count===target.count&&captured.intervalSig===target.intervalSig){
+   return {
+    name:set.c[index]||noteNames[index],
+    key:noteNames[index],
+    setNo:set.n
+   };
+  }
+ }
+ return null;
+}
+
+function repeatedProgression(flow){
+ const maxLength=Math.min(4,Math.floor(flow.length/2));
+ for(let length=maxLength;length>=2;length--){
+  const pattern=flow.slice(-length);
+  let repeats=1;
+  let cursor=flow.length-length*2;
+  while(cursor>=0){
+   const previous=flow.slice(cursor,cursor+length);
+   if(!previous.every((item,index)=>(item.core||item.name)===(pattern[index].core||pattern[index].name)))break;
+   repeats++;
+   cursor-=length;
+  }
+  if(repeats>=2)return {pattern,repeats};
+ }
+ return null;
+}
+
+function harmonicCore(chord){
+ const root=((chord.root%12)+12)%12;
+ const intervals=new Set(chord.pcs.map(pc=>(pc-root+12)%12));
+ let quality='other';
+ if(intervals.has(3)&&intervals.has(6))quality='dim';
+ else if(intervals.has(4)&&intervals.has(8))quality='aug';
+ else if(intervals.has(3))quality='minor';
+ else if(intervals.has(4))quality='major';
+ else if(intervals.has(5))quality='sus4';
+ else if(intervals.has(2))quality='sus2';
+ else if(intervals.has(7))quality='power';
+ return `${root}:${quality}`;
+}
+
+function recordChordHistory(chord){
+ if(!chord||new Set(chord.nums.map(note=>((note%12)+12)%12)).size<3)return;
+ const assignment=matchCurrentJ6Assignment(chord.nums);
+ const resolvedName=assignment?.name||chord.name;
+ const core=harmonicCore(chord);
+ if(core===lastHistorySignature)return;
+ lastHistorySignature=core;
+ chordHistory.unshift({
+  name:resolvedName,
+  core,
+  notes:chord.nums.map(noteName).join(' '),
+  key:assignment?.key||null,
+  setNo:assignment?.setNo||null
+ });
+ chordHistory.splice(12);
+
+ const flow=[...chordHistory].reverse();
+ const repeated=repeatedProgression(flow);
+ const visible=repeated?.pattern||flow.slice(-8);
+ $('liveProgression').textContent=repeated
+  ?`↻ ${visible.map(item=>item.name).join('  →  ')}  ×${repeated.repeats}`
+  :visible.map(item=>item.name).join('  →  ')||'—';
+
+ const assigned=visible.filter(item=>item.key);
+ const insight=[];
+ if(repeated)insight.push(`${visible.length}コードの反復を検出`);
+ if(assigned.length===visible.length&&assigned.length){
+  insight.push(`J-6 Set ${assigned[0].setNo} 割り当て鍵: ${assigned.map(item=>item.key).join(' → ')}`);
+ }
+ $('liveProgressionInsight').textContent=insight.join(' / ');
+ $('history').innerHTML=chordHistory.map((item,index)=>`
+  <div>
+   <b>${index+1}. ${item.name}</b><br>
+   <span>${item.notes}</span>
+  </div>`).join('');
+}
+
+
+function resetMidiChannelDetection(){
+ midiChannelDetector.detected=null;
+ midiChannelDetector.counts.fill(0);
+ midiChannelDetector.firstSeen.fill(0);
+ midiChannelDetector.lastSeen.fill(0);
+ midiChannelDetector.startedAt=performance.now();
+ $('detectedMidiChannel').textContent='AUTO';
+ $('detectedMidiChannel').style.color='var(--accent2)';
+}
+function observeMidiChannel(channel,cmd,velocity){
+ if($('inputChannel').value!=='auto')return;
+ if(cmd!==0x90||velocity<=0)return;
+
+ const now=performance.now();
+ if(!midiChannelDetector.firstSeen[channel])midiChannelDetector.firstSeen[channel]=now;
+ midiChannelDetector.lastSeen[channel]=now;
+ midiChannelDetector.counts[channel]++;
+
+ if(midiChannelDetector.detected===null){
+  const bestCount=Math.max(...midiChannelDetector.counts);
+  const bestChannel=midiChannelDetector.counts.indexOf(bestCount);
+
+  // A single chord normally generates several Note On messages on one channel.
+  // Lock after two Note On messages, or after one message if no competing
+  // channel has appeared for 180 ms.
+  if(bestCount>=midiChannelDetector.lockThreshold){
+   midiChannelDetector.detected=bestChannel;
+  }else{
+   clearTimeout(observeMidiChannel.singleTimer);
+   observeMidiChannel.singleTimer=setTimeout(()=>{
+    if(midiChannelDetector.detected!==null||$('inputChannel').value!=='auto')return;
+    const active=midiChannelDetector.counts
+      .map((count,ch)=>({count,ch}))
+      .filter(x=>x.count>0)
+      .sort((a,b)=>b.count-a.count);
+    if(active.length===1||active[0]?.count>active[1]?.count){
+     midiChannelDetector.detected=active[0].ch;
+     updateDetectedMidiChannelDisplay();
+    }
+   },180);
+  }
+  updateDetectedMidiChannelDisplay();
+ }
+}
+function updateDetectedMidiChannelDisplay(){
+ const ch=midiChannelDetector.detected;
+ if(ch===null){
+  const seen=midiChannelDetector.counts
+    .map((count,i)=>count?`Ch${i+1}:${count}`:'')
+    .filter(Boolean)
+    .join(' ');
+  $('detectedMidiChannel').textContent=seen?`検出中 ${seen}`:'AUTO';
+  $('detectedMidiChannel').style.color='var(--accent2)';
+ }else{
+  $('detectedMidiChannel').textContent=`Channel ${ch+1}`;
+  $('detectedMidiChannel').style.color='var(--green)';
+ }
+}
+function midiChannelAccepted(channel){
+ const mode=$('inputChannel').value;
+ if(mode==='all')return true;
+ if(mode==='auto'){
+  return midiChannelDetector.detected===null||midiChannelDetector.detected===channel;
+ }
+ return +mode===channel;
+}
+
+function handleMidi(e,port=null){
+ const d=[...e.data],st=d[0],cmd=st&0xf0,ch=st&0x0f,a=d[1]||0,b=d[2]||0;
+ const now=performance.now(),signature=`${port?.id||''}:${d.join(',')}`;
+ if(signature===lastMidiSignature&&now-lastMidiSignatureAt<3)return;
+ lastMidiSignature=signature;lastMidiSignatureAt=now;midiLastMessageAt=now;midiReconnectAttempts=0;
+ setMidiWatchdogStatus('RECEIVING','ok');
+ $('lastMidiInput').textContent=`${port?.name||'MIDI'} / Ch${ch+1} / ${d.map(x=>x.toString(16).padStart(2,'0')).join(' ')}`;
+ $('statusDot').className='status-dot ok';
+ observeMidiChannel(ch,cmd,b);
+ if(!midiChannelAccepted(ch))return;
+ if(cmd===0x90&&b>0){
+  activeNotes.set(a,{v:b,source:'in'});setKey(a,true);
+  addMidiBurstNote(a,b,ch);
+  log('IN','NOTE ON',`Ch${ch+1} ${noteName(a)} vel ${b}`,d);
+  updateHarmony();
+ }else if(cmd===0x80||(cmd===0x90&&b===0)){
+  activeNotes.delete(a);setKey(a,false);
+  log('IN','NOTE OFF',`Ch${ch+1} ${noteName(a)}`,d);
+  updateHarmony();
+  schedulePlayDetection();
+  if(!inputNoteNumbers().length)scheduleProgressionSilenceReset();
+ }else if(cmd===0xB0){
+  log('IN','CC',`Ch${ch+1} CC${a} = ${b}`,d);
+ }else if(cmd===0xC0){
+  log('IN','PC',`Ch${ch+1} Program ${a} / Pattern ${a+1}`,d);
+ }else if(st===0xF8){
+  // MIDI clock is intentionally not logged every tick.
+ }else if(st===0xFA)log('IN','START','Transport start',d);
+ else if(st===0xFC)log('IN','STOP','Transport stop',d);
+ else log('IN','MIDI',`status ${st}`,d);
+}
+function inputNoteNumbers(){
+ return [...activeNotes.entries()]
+  .filter(([,state])=>state?.source==='in')
+  .map(([note])=>note)
+  .sort((a,b)=>a-b);
+}
+function chordInterpretation(){
+ const nums=inputNoteNumbers();
+ if(!nums.length)return null;
+ const pcs=[...new Set(nums.map(n=>n%12))].sort((a,b)=>a-b),bass=nums[0]%12,candidates=[];
+ for(let root=0;root<12;root++)for(const [suffix,ints] of chordProfiles){
+  const target=[...new Set(ints.map(i=>(root+i)%12))];
+  const exact=target.length===pcs.length&&target.every(x=>pcs.includes(x));
+  if(exact)candidates.push({root,name:noteNames[root]+suffix+(bass!==root?'/'+noteNames[bass]:''),score:100+target.length});
+ }
+ if(!candidates.length){
+  for(let root=0;root<12;root++)for(const [suffix,ints] of chordProfiles){
+   const target=[...new Set(ints.map(i=>(root+i)%12))];
+   if(target.every(x=>pcs.includes(x)))candidates.push({
+    root,
+    name:noteNames[root]+suffix+(bass!==root?'/'+noteNames[bass]:''),
+    score:target.length*10-(pcs.length-target.length)
+   });
+  }
+ }
+ candidates.sort((a,b)=>b.score-a.score);
+ return {
+  name:candidates[0]?.name||`${noteNames[bass]} cluster`,
+  root:candidates[0]?.root??bass,
+  bass,
+  nums,
+  pcs
+ };
+}
+let selectedAssignmentGuide={pcs:new Set(),label:'—',setNo:null,triggerPc:null,assignmentPc:null,notes:[]};
+let lastHistorySignature='';
+function renderAssignmentGuide(guide=selectedAssignmentGuide){
+ const root=$('assignmentGuideLabel');
+ if(!root)return;
+ root.replaceChildren();
+
+ const name=document.createElement('strong');
+ name.textContent=guide?.pcs?.size?guide.label:'—';
+ root.appendChild(name);
+
+ if(!guide?.pcs?.size)return;
+ guide.notes.forEach(note=>{
+  const chip=document.createElement('span');
+  chip.className='guide-note-chip';
+  chip.textContent=note;
+  root.appendChild(chip);
+ });
+
+ const detail=document.createElement('small');
+ const trigger=Number.isFinite(guide.triggerPc)?`トリガー ${noteNames[guide.triggerPc]}`:'';
+ const set=guide.setNo?`Set ${guide.setNo}`:'';
+ detail.textContent=[trigger,set].filter(Boolean).join(' / ');
+ if(detail.textContent)root.appendChild(detail);
+}
+function updateHarmony(){
+ const c=chordInterpretation();
+
+ if(!c){
+  $('liveChord').textContent='—';
+  $('liveRoot').textContent='—';
+  $('liveBass').textContent='—';
+  $('liveVelocity').textContent='—';
+  $('liveNotes').textContent='—';
+  refreshMidiVisuals();
+  schedulePlayDetection();
+  return;
+ }
+
+ $('liveChord').textContent=c.name;
+ $('liveRoot').textContent=noteNames[c.root];
+ $('liveBass').textContent=noteNames[c.bass];
+ $('liveNotes').textContent=c.nums.map(noteName).join(' · ');
+ const avg=Math.round(c.nums.reduce((sum,n)=>sum+(activeNotes.get(n)?.v||0),0)/c.nums.length);
+ $('liveVelocity').textContent=avg;
+
+ refreshMidiVisuals();
+ scheduleIdentifierCapture();
+ schedulePlayDetection();
+
+}
+function setKey(n,on){
+ document.querySelectorAll(`#keyboard .key[data-note="${n}"]`)
+  .forEach(key=>key.classList.toggle('active',on));
+}
+
+function selectJ6AssignmentKey(key){
+ const pcs=(key.dataset.voicingPcs||'')
+  .split(',')
+  .filter(Boolean)
+  .map(Number);
+ const notes=[...key.querySelectorAll('.assigned-note')]
+  .map(label=>label.textContent.trim())
+  .filter(Boolean);
+ const label=key.querySelector('.assigned-chord')?.textContent?.trim()||'—';
+ const setNo=+key.dataset.setNo||+$('chordSetSelect').value||null;
+ const assignmentPc=Number.isFinite(+key.dataset.assignmentPc)
+  ?+key.dataset.assignmentPc
+  :null;
+ const triggerPc=Number.isFinite(+key.dataset.triggerPc)
+  ?+key.dataset.triggerPc
+  :null;
+
+ selectedAssignmentGuide={
+  pcs:new Set(pcs),
+  label,
+  setNo,
+  triggerPc,
+  assignmentPc,
+  notes
+ };
+
+ renderAssignmentGuide(selectedAssignmentGuide);
+
+ refreshMidiVisuals();
+}
+
+function refreshMidiVisuals(){
+ const held=inputNoteNumbers();
+ const heldSet=new Set(held);
+ const heldPcs=new Set(held.map(n=>((n%12)+12)%12));
+ const signature=held.length?pitchClassSignature(held):'';
+ const intervalSignature=held.length
+  ?normalizedIntervalSignature(held)
+  :'';
+
+ let exactAssignment=null;
+
+ document.querySelectorAll('.j6-key').forEach(key=>{
+  const voicing=(key.dataset.voicingPcs||'')
+   .split(',')
+   .filter(Boolean)
+   .map(Number);
+  const overlap=voicing.filter(pc=>heldPcs.has(pc)).length;
+  const exact=Boolean(
+   held.length>=2&&
+   +key.dataset.voicingCount===held.length&&
+   key.dataset.voicingPcs===signature&&
+   key.dataset.voicingIntervals===intervalSignature
+  );
+
+  key.classList.toggle('midi-match',exact);
+  key.classList.toggle('midi-partial',Boolean(held.length>=2&&!exact&&overlap>0));
+
+  const selectedByGuide=
+   selectedAssignmentGuide.setNo===+key.dataset.setNo&&
+   selectedAssignmentGuide.assignmentPc===+key.dataset.assignmentPc;
+  key.classList.toggle('manual-selected',selectedByGuide);
+
+  if(exact&&!exactAssignment){
+   exactAssignment={
+    pcs:new Set(voicing),
+    label:key.querySelector('.assigned-chord')?.textContent?.trim()||'—',
+    setNo:+key.dataset.setNo||+$('chordSetSelect').value||null,
+    triggerPc:Number.isFinite(+key.dataset.triggerPc)?+key.dataset.triggerPc:null,
+    assignmentPc:Number.isFinite(+key.dataset.assignmentPc)?+key.dataset.assignmentPc:null,
+    notes:[...key.querySelectorAll('.assigned-note')]
+     .map(label=>label.textContent.trim())
+     .filter(Boolean)
+   };
+  }
+
+  key.querySelectorAll('.assigned-note').forEach(label=>{
+   const note=+label.dataset.note;
+   const pc=+label.dataset.pc;
+   label.classList.toggle('midi-exact',heldSet.has(note));
+   label.classList.toggle('midi-pc',!heldSet.has(note)&&heldPcs.has(pc));
+  });
+ });
+
+ // Retain the most recently matched J-6 chord as a melody guide.
+ if(exactAssignment){
+  selectedAssignmentGuide=exactAssignment;
+  renderAssignmentGuide(selectedAssignmentGuide);
+ }
+
+ document.querySelectorAll('#keyboard .key').forEach(key=>{
+  const note=+key.dataset.note;
+  const pc=+key.dataset.pc;
+
+  key.classList.toggle('assignment-guide',selectedAssignmentGuide.pcs.has(pc));
+  key.classList.toggle('active',heldSet.has(note));
+  key.classList.toggle('chord-tone',heldPcs.has(pc));
+ });
+
+ if(!selectedAssignmentGuide.pcs.size){
+  renderAssignmentGuide(selectedAssignmentGuide);
+ }
+}
+function buildKeyboard(){
+ const start=36,end=96,ww=48,bw=30,bm={1:1,3:2,6:4,8:5,10:6};
+ const shift=+$('octave').value||0,kb=$('keyboard');
+ kb.innerHTML='';
+ const whiteCount=Array.from({length:end-start+1},(_,i)=>start+i)
+  .filter(n=>![1,3,6,8,10].includes(n%12)).length;
+ const baseWidth=whiteCount*ww;
+ const baseHeight=128;
+
+ kb.style.width=`${baseWidth}px`;
+ kb.style.minWidth=`${baseWidth}px`;
+ kb.style.height=`${baseHeight}px`;
+ kb.dataset.baseWidth=String(baseWidth);
+ kb.dataset.baseHeight=String(baseHeight);
+ kb.setAttribute('aria-label','MIDI入力構成音表示');
+ let whiteIndex=0;
+
+ for(let base=start;base<=end;base++){
+  const pc=base%12,black=pc in bm;
+  const shifted=Math.max(0,Math.min(127,base+shift*12));
+  const k=document.createElement('div');
+  k.className=`key visual-only ${black?'black':'white'}`;
+  k.dataset.note=shifted;
+  k.dataset.pc=shifted%12;
+  k.innerHTML=`<span class="key-label"><b>${noteNames[shifted%12]}</b><small>${noteName(shifted)}</small></span>${pc===0?`<span class="octave-mark">${shift>0?'+':''}${shift}</span>`:''}`;
+  k.style.width=`${black?bw:ww}px`;
+
+  if(black){
+   const prev=Array.from({length:base-start},(_,i)=>start+i)
+    .filter(x=>![1,3,6,8,10].includes(x%12)).length;
+   k.style.left=`${prev*ww-bw/2}px`;
+  }else{
+   k.style.left=`${whiteIndex*ww}px`;
+   whiteIndex++;
+  }
+  kb.appendChild(k);
+ }
+ requestAnimationFrame(()=>{
+  fitMidiKeyboard();
+  refreshMidiVisuals();
+ });
+}
+function chordNameToNotes(name,baseOct=3){
+ const rootMatch=name.match(/^([A-G])([#b]?)/);if(!rootMatch)return [];
+ const root=parseNote(rootMatch[1]+rootMatch[2]+baseOct);let ints=[0,4,7];
+ if(/dim7/i.test(name))ints=[0,3,6,9];else if(/m7b5/i.test(name))ints=[0,3,6,10];else if(/maj9|M9/.test(name))ints=[0,4,7,11,14];
+ else if(/m9/i.test(name))ints=[0,3,7,10,14];else if(/maj7|M7/.test(name))ints=[0,4,7,11];
+ else if(/m7/i.test(name))ints=[0,3,7,10];else if(/7/.test(name))ints=[0,4,7,10];
+ else if(/m(?!aj)/i.test(name))ints=[0,3,7];else if(/sus2/i.test(name))ints=[0,2,7];else if(/sus4/i.test(name))ints=[0,5,7];
+ else if(/add9/i.test(name))ints=[0,4,7,14];else if(/5/.test(name))ints=[0,7];
+ return ints.map(i=>root+i);
+}
+function resetPlayDetector(){
+ selectedAssignmentGuide={pcs:new Set(),label:'—',setNo:null,triggerPc:null,assignmentPc:null,notes:[]};
+ renderAssignmentGuide(selectedAssignmentGuide);
+ document.querySelectorAll('#keyboard .key.assignment-guide')
+  .forEach(key=>key.classList.remove('assignment-guide'));
+
+ playDetector.index=0;playDetector.captured=[];playDetector.lastSignature='';playDetector.lastCaptureAt=0;playDetector.armed=true;playDetector.bestSet=1;playDetector.confidence=0;playDetector.secondScore=0;playDetector.locked=false;
+ clearTimeout(playDetector.timer);renderPlayDetectProgress();rankPlayDetector();buildPlayJ6Assignment(1);
+ if($('playManualSet'))$('playManualSet').value='01';
+ $('playDetectedSet').closest('.detect-result')?.classList.remove('detector-locked');
+ $('playDetectConfirm').disabled=false;
+ $('playDetectHint').textContent='J-6のコードモードでCから順に弾いてください。2音以上の構成音と音程配置で判定します。';
+}
+function applyManualPlaySet(){
+ const input=$('playManualSet');
+ const setNo=Number.parseInt(input.value,10);
+ if(!Number.isInteger(setNo)||setNo<1||setNo>99){
+  input.setCustomValidity('01〜99の2桁で入力してください');
+  input.reportValidity();
+  return;
+ }
+
+ input.setCustomValidity('');
+ input.value=String(setNo).padStart(2,'0');
+ const set=chordSets.find(item=>item.n===setNo);
+ if(!set)return;
+
+ playDetector.locked=true;
+ playDetector.bestSet=setNo;
+ playDetector.confidence=1;
+ clearTimeout(playDetector.timer);
+ clearTimeout(midiBurst.timer);
+ $('chordSetSelect').value=String(setNo);
+ renderChordSet();
+ buildPlayJ6Assignment(setNo);
+ $('playDetectedSet').textContent=`Set ${input.value}: ${set.g} — 手動設定`;
+ $('playSetConfidence').textContent='手動設定で固定中';
+ $('playDetectHint').textContent='手動設定を使用中です。「再判定」で自動判定へ戻せます。';
+ $('playDetectedSet').closest('.detect-result')?.classList.add('detector-locked');
+ $('playDetectConfirm').disabled=true;
+}
+function renderPlayDetectProgress(){
+ $('playDetectProgress').innerHTML=noteNames.map((n,i)=>`<span class="${i<playDetector.index?'done':i===playDetector.index?'current':''}">${n}</span>`).join('');
+}
+function schedulePlayDetection(){
+ clearTimeout(playDetector.timer);
+
+ const held=inputNoteNumbers();
+ if(!held.length){
+  playDetector.armed=true;
+  playDetector.lastSignature='';
+  return;
+ }
+ if(!officialDataReady||playDetector.locked||!playDetector.armed)return;
+
+ // J-6 chord sets contain at least two notes. Ignore a transient single Note On.
+ if(held.length<2){
+  $('playDetectHint').textContent=
+   `${noteNames[playDetector.index]}：構成音の到着待ち`;
+  return;
+ }
+
+ // Wait until all Note On messages for the currently held chord have arrived.
+ playDetector.timer=setTimeout(()=>{
+  const current=inputNoteNumbers();
+  if(current.length>=2&&playDetector.armed){
+   capturePlayDetectionFromNotes(current,chordFromNotes(current));
+  }
+ },180);
+}
+function capturePlayDetectionFromNotes(notes,info=null){
+ if(!officialDataReady||playDetector.locked||playDetector.index>=12)return;
+
+ const held=inputNoteNumbers();
+ if(held.length<2||!playDetector.armed)return;
+
+ const pcSig=pitchClassSignature(held);
+ const intervalSig=normalizedIntervalSignature(held);
+ const c=info||chordFromNotes(held);
+
+ playDetector.captured[playDetector.index]={
+  pcSig,
+  intervalSig,
+  count:held.length,
+  name:c?.name||noteName(held[0]),
+  notes:[...held]
+ };
+
+ playDetector.lastSignature=`${held.length}|${intervalSig}|${pcSig}`;
+ playDetector.lastCaptureAt=performance.now();
+ playDetector.armed=false;
+ playDetector.index++;
+
+ rankPlayDetector();
+ renderPlayDetectProgress();
+
+ $('playDetectHint').textContent=playDetector.index<12
+  ?`${noteNames[playDetector.index-1]} OK → 鍵盤を離して ${noteNames[playDetector.index]}`
+  :'12鍵 完了';
+}
+function capturePlayDetection(){
+ if(!officialDataReady||playDetector.locked||playDetector.index>=12)return;
+ const held=inputNoteNumbers();
+ if(!held.length||!playDetector.armed)return;
+ capturePlayDetectionFromNotes(held,chordFromNotes(held));
+}
+function scoreChordSetCaptures(captures,set){
+ let total=0;
+ let exactCount=0;
+
+ captures.forEach((captured,index)=>{
+  const target=voicingProfile(set.v[index]);
+  const countExact=captured.count===target.count;
+  const intervalExact=countExact&&captured.intervalSig===target.intervalSig;
+  const pcExact=captured.pcSig===target.pcSig;
+  const capturedPcs=new Set(captured.pcSig.split(',').filter(Boolean));
+  const targetPcs=new Set(target.pcSig.split(',').filter(Boolean));
+  const intersection=[...capturedPcs].filter(pc=>targetPcs.has(pc)).length;
+  const union=new Set([...capturedPcs,...targetPcs]).size;
+  const pcSimilarity=union?intersection/union:0;
+  const countDifference=Math.abs(captured.count-target.count);
+  const countScore=Math.max(0,1-countDifference/Math.max(captured.count,target.count,1));
+  let chordScore=0;
+
+  if(intervalExact){
+   chordScore=1;
+   exactCount++;
+  }else{
+   chordScore=pcSimilarity*.34+countScore*.22+(pcExact&&countExact?.16:0);
+   if(captured.count===1||target.count===1)chordScore=Math.min(chordScore,.24);
+   if(!countExact)chordScore*=.55;
+  }
+  total+=chordScore;
+ });
+
+ return {
+  score:captures.length?total/captures.length:0,
+  exact:exactCount
+ };
+}
+function rankPlayDetector(){
+ if(!officialDataReady||chordSets.length!==100){
+  $('playDetectedSet').textContent='公式100セット待機中';
+  $('playSetConfidence').textContent='判定停止';
+  return;
+ }
+
+ if(!playDetector.captured.length){
+  $('playDetectedSet').textContent='—';
+  $('playSetConfidence').textContent='未判定';
+  return;
+ }
+
+ const ranked=chordSets.map(set=>{
+  const result=scoreChordSetCaptures(playDetector.captured,set);
+  return {set,score:result.score,exact:result.exact};
+ }).sort((a,b)=>{
+  if(b.score!==a.score)return b.score-a.score;
+  return b.exact-a.exact;
+ });
+
+ const best=ranked[0];
+ const second=ranked[1]||{score:0};
+
+ playDetector.bestSet=best.set.n;
+ playDetector.confidence=best.score;
+ playDetector.secondScore=second.score;
+
+ $('playDetectedSet').textContent=`Set ${best.set.n}: ${best.set.g}`;
+ $('playSetConfidence').textContent=
+  `一致度 ${Math.round(best.score*100)}% / 音程配置 ${best.exact}/${playDetector.captured.length}`;
+
+ $('chordSetSelect').value=String(best.set.n);
+ renderChordSet();
+ buildPlayJ6Assignment(best.set.n);
+
+ const enoughKeys=playDetector.captured.length>=4;
+ const clearlySeparated=(best.score-second.score)>=0.12;
+ const highConfidence=best.score>=0.78;
+ const enoughExact=best.exact>=Math.min(3,playDetector.captured.length);
+
+ if(
+  !playDetector.locked&&
+  enoughKeys&&
+  highConfidence&&
+  clearlySeparated&&
+  enoughExact
+ ){
+  lockPlayDetector('自動確定');
+ }
+}
+
+function lockPlayDetector(reason='手動確定'){
+ if(!officialDataReady||playDetector.locked||!playDetector.captured.length)return;
+ playDetector.locked=true;clearTimeout(playDetector.timer);clearTimeout(midiBurst.timer);
+ const s=chordSets.find(x=>x.n===playDetector.bestSet)||chordSets[0];
+ $('playDetectedSet').textContent=`Set ${s.n}: ${s.g} — 確定`;
+ $('playSetConfidence').textContent=`${reason} / 100セット中 / 一致度 ${Math.round(playDetector.confidence*100)}%`;
+ $('playDetectHint').textContent=`コードセットを確定しました。以降のMIDI入力では更新しません。「再判定」で解除できます。`;
+ $('playDetectedSet').closest('.detect-result')?.classList.add('detector-locked');
+ $('playDetectConfirm').disabled=true;
+ buildPlayJ6Assignment(s.n);
+}
+
+
+function fitScaledKeyboard(stage,root,defaultWidth,defaultHeight){
+ if(!stage||!root)return;
+ const baseWidth=+(root.dataset.baseWidth||defaultWidth);
+ const baseHeight=+(root.dataset.baseHeight||defaultHeight);
+ const available=Math.max(120,stage.clientWidth);
+ const scale=Math.min(1,available/baseWidth);
+ root.style.transformOrigin='top left';
+ root.style.transform=`scale(${scale})`;
+ stage.style.height=`${Math.max(36,Math.ceil(baseHeight*scale))}px`;
+ stage.dataset.scale=String(scale);
+}
+
+function fitMidiKeyboard(){
+ fitScaledKeyboard($('midiKeyboardStage'),$('keyboard'),1728,128);
+}
+function fitJ6ListAssignment(){
+ fitScaledKeyboard($('j6AssignmentStage'),$('j6Assignment'),1360,300);
+}
+
+function fitPlayJ6Assignment(){
+ const wrap=$('playJ6AssignmentStage'),root=$('playJ6Assignment');
+ if(!wrap||!root)return;
+ const baseWidth=+(root.dataset.baseWidth||1190);
+ const baseHeight=+(root.dataset.baseHeight||330);
+ const available=Math.max(180,wrap.clientWidth);
+ const scale=Math.min(1,available/baseWidth);
+ root.style.transform=`scale(${scale})`;
+ wrap.style.height=`${Math.ceil(baseHeight*scale)}px`;
+}
+
+function fitJ6AssignmentLabels(root){
+ if(!root)return;
+ root.querySelectorAll('.j6-key .assigned-chord').forEach(label=>{
+  label.style.removeProperty('font-size');
+  const available=Math.max(24,label.clientWidth-2);
+  const required=label.scrollWidth;
+  if(required<=available)return;
+  const current=Number.parseFloat(getComputedStyle(label).fontSize)||16;
+  const fitted=Math.max(10,current*(available/required)*.96);
+  label.style.setProperty('font-size',`${fitted}px`,'important');
+ });
+}
+
+function buildPlayJ6Assignment(setNo){
+ const s=chordSets.find(x=>x.n===+setNo)||chordSets[0],root=$('playJ6Assignment');
+ const ww=170,bw=138,blackPositions={1:1,3:2,6:4,8:5,10:6};
+ root.style.width=`${8*ww}px`;root.style.minWidth='0';root.style.height='330px';
+ root.dataset.baseWidth=String(8*ww);root.dataset.baseHeight='330';
+ root.innerHTML='';let wi=0;
+ for(let slot=0;slot<=12;slot++){
+  const pc=slot%12,black=slot in blackPositions,k=document.createElement('button');
+  k.className=`j6-key ${black?'black':'white'}${slot===12?' octave-c':''}`;
+  k.style.width=`${black?bw:ww}px`;
+  k.style.left=black?`${blackPositions[slot]*ww-bw/2}px`:`${wi++*ww}px`;
+  const notes=s.v[pc].split(/\s+/).map(parseNote).filter(Number.isFinite)
+   .map(note=>slot===12?note+12:note);
+  k.type='button';
+  k.tabIndex=-1;
+  k.dataset.voicingPcs=pitchClassSignature(notes);
+  k.dataset.voicingIntervals=normalizedIntervalSignature(notes);
+  k.dataset.voicingCount=String(notes.length);
+  k.dataset.triggerPc=String(pc);
+  k.dataset.assignmentPc=String(pc);
+  k.dataset.setNo=String(s.n);
+  const noteHtml=notes.map(n=>`<span class="assigned-note" data-note="${n}" data-pc="${((n%12)+12)%12}">${noteName(n)}</span>`).join('<span class="note-separator">·</span>');
+  k.innerHTML=`<span class="trigger-note">${noteNames[pc]}</span><span class="assigned-chord">${s.c[pc]||`${noteNames[pc]} ${s.g}`}</span><span class="assigned-notes">${noteHtml}</span>`;
+  k.addEventListener('click',event=>{
+   event.preventDefault();
+   selectJ6AssignmentKey(k);
+  });
+  root.appendChild(k);
+ }
+ requestAnimationFrame(()=>{fitJ6AssignmentLabels(root);fitPlayJ6Assignment();refreshMidiVisuals()});
+}
+
+function pitchClassSignature(notes){
+ return [...new Set(notes.map(n=>((n%12)+12)%12))]
+  .sort((a,b)=>a-b)
+  .join(',');
+}
+
+function normalizedIntervalSignature(notes){
+ const sorted=[...new Set(notes)]
+  .filter(Number.isFinite)
+  .sort((a,b)=>a-b);
+ if(!sorted.length)return '';
+ const base=sorted[0];
+ return sorted.map(note=>note-base).join(',');
+}
+
+function voicingProfile(voicing){
+ const notes=voicing
+  .split(/\s+/)
+  .map(parseNote)
+  .filter(Number.isFinite)
+  .sort((a,b)=>a-b);
+
+ return {
+  notes,
+  count:notes.length,
+  intervalSig:normalizedIntervalSignature(notes),
+  pcSig:pitchClassSignature(notes)
+ };
+}
+function buildJ6Assignment(){
+ const s=chordSets.find(x=>x.n===+$('chordSetSelect').value)||chordSets[0],shift=+$('transposeSelect').value;
+ const root=$('j6Assignment');root.innerHTML='';
+ const ww=170,bw=138,whitePcs=[0,2,4,5,7,9,11],blackPositions={1:1,3:2,6:4,8:5,10:6};
+ root.style.width=`${8*ww}px`;root.style.minWidth=`${8*ww}px`;
+ let wi=0;
+ for(let slot=0;slot<=12;slot++){
+  const pc=slot%12,black=slot in blackPositions,k=document.createElement('button');
+  k.className=`j6-key ${black?'black':'white'}${slot===12?' octave-c':''}`;k.dataset.assignment=pc;
+  k.style.width=`${black?bw:ww}px`;
+  k.style.left=black?`${blackPositions[slot]*ww-bw/2}px`:`${wi++*ww}px`;
+  const notes=s.v[pc].split(/\s+/).map(parseNote).filter(Number.isFinite)
+   .map(note=>note+shift+(slot===12?12:0));
+  k.type='button';
+  k.tabIndex=-1;
+  k.dataset.voicingPcs=pitchClassSignature(notes);
+  k.dataset.voicingIntervals=normalizedIntervalSignature(notes);
+  k.dataset.voicingCount=String(notes.length);
+  k.dataset.triggerPc=String((pc+shift+120)%12);
+  k.dataset.assignmentPc=String(pc);
+  k.dataset.setNo=String(s.n);
+  const noteHtml=notes.map(n=>`<span class="assigned-note" data-note="${n}" data-pc="${((n%12)+12)%12}">${noteName(n)}</span>`).join('<span class="note-separator">·</span>');
+  k.innerHTML=`<span class="trigger-note">${noteNames[pc]}</span><span class="assigned-chord">${transposeLabel(s.c[pc],shift)||`${noteNames[(pc+shift+120)%12]} ${s.g}`}</span><span class="assigned-notes">${noteHtml}</span>`;
+  k.addEventListener('click',event=>{
+   event.preventDefault();
+   selectJ6AssignmentKey(k);
+  });
+  root.appendChild(k);
+ }
+ root.dataset.baseWidth=String(8*ww);root.dataset.baseHeight='300';
+ requestAnimationFrame(()=>{fitJ6AssignmentLabels(root);fitJ6ListAssignment();refreshMidiVisuals()});
+}
+function renderIdentifierSteps(){
+ $('identifierSteps').innerHTML=noteNames.map((n,i)=>`<span class="${i<identifier.index?'done':i===identifier.index&&identifier.running?'current':''}">${n}</span>`).join('');
+ $('identifyCount').textContent=`${identifier.captured.length} / 12 keys`;
+}
+function startIdentifier(){
+ identifier.running=true;identifier.index=0;identifier.captured=[];identifier.lastSignature='';
+ clearTimeout(identifier.timer);renderIdentifierSteps();rankChordSets();
+ $('identifyInstruction').textContent='J-6の C キーを鳴らしてください。コードが安定したら自動で登録します。';
+}
+function resetIdentifier(){
+ identifier.running=false;identifier.index=0;identifier.captured=[];identifier.lastSignature='';
+ clearTimeout(identifier.timer);renderIdentifierSteps();rankChordSets();
+ $('identifyInstruction').textContent='開始後、J-6のCキーから順番にコードを鳴らしてください。入力が安定すると自動登録します。';
+}
+function captureIdentifier(){
+ if(!identifier.running)return;
+ const c=chordInterpretation(),notes=[...activeNotes.keys()];
+ if(!c||notes.length<2)return;
+ const pcSig=pitchClassSignature(notes);
+ const intervalSig=normalizedIntervalSignature(notes);
+ identifier.lastSignature=`${notes.length}|${intervalSig}|${pcSig}`;
+ identifier.captured[identifier.index]={
+  pcSig,
+  intervalSig,
+  count:notes.length,
+  name:c.name,
+  notes:[...notes]
+ };
+ identifier.index++;
+ if(identifier.index>=12){
+  identifier.running=false;
+  $('identifyInstruction').textContent='12キーの登録が完了しました。候補の一致率を確認してください。';
+ }else{
+  $('identifyInstruction').textContent=`登録: ${noteNames[identifier.index-1]} = ${c.name}。次は ${noteNames[identifier.index]} キーを鳴らしてください。`;
+ }
+ renderIdentifierSteps();rankChordSets();
+}
+function scheduleIdentifierCapture(){
+ if(!identifier.running)return;
+ clearTimeout(identifier.timer);
+ identifier.timer=setTimeout(()=>{
+  if(activeNotes.size>=2)captureIdentifier();
+ },420);
+}
+function rankChordSets(){
+ if(!officialDataReady||chordSets.length!==100){
+  $('candidateList').innerHTML='<div class="warn">公式100セットを読み込むまで判定しません。</div>';return;
+ }
+ if(!identifier.captured.length){
+  $('candidateList').innerHTML='<div class="warn">まだ判定データがありません。</div>';return;
+ }
+ const ranked=chordSets.map(s=>{
+  const result=scoreChordSetCaptures(identifier.captured,s);
+  return {s,score:result.score,exact:result.exact};
+ }).sort((a,b)=>{
+  if(b.score!==a.score)return b.score-a.score;
+  return b.exact-a.exact;
+ }).slice(0,8);
+ $('candidateList').innerHTML=ranked.map((r,i)=>`<button class="candidate" data-candidate="${r.s.n}"><b>#${r.s.n}</b><span><strong>${r.s.g}</strong><div class="candidate-meter"><i style="width:${Math.round(r.score*100)}%"></i></div></span><b>${Math.round(r.score*100)}%</b></button>`).join('');
+ document.querySelectorAll('[data-candidate]').forEach(b=>b.onclick=()=>{
+  $('chordSetSelect').value=b.dataset.candidate;renderChordSet();buildJ6Assignment();
+ });
+}
+
+function initChordSets(){
+ chordSets.forEach(s=>$('chordSetSelect').add(new Option(`${s.n}. ${s.g}`,s.n)));
+ for(let i=-11;i<=11;i++)$('transposeSelect').add(new Option(i===0?'原音':`${i>0?'+':''}${i} semitone`,i));
+ $('chordSetSelect').value='1';renderChordSet();renderChordTable();
+}
+function transposeLabel(label,shift){
+ if(!shift)return label;
+ return label.replace(/[A-G](?:#|b)?/g,m=>{
+  const pc=noteNames.indexOf(m.replace('b','#'));
+  let x;
+  if(m.length===2&&m[1]==='b')x=(flatNames.indexOf(m)+shift+12)%12;
+  else x=(noteNames.indexOf(m)+shift+12)%12;
+  return noteNames[x<0?0:x];
+ });
+}
+function renderChordSet(){
+ buildJ6Assignment();
+}
+function renderChordTable(){
+ const q=$('chordSearch').value.trim().toLowerCase();
+ const list=chordSets.filter(s=>!q||(`${s.n} ${s.g} ${s.c.join(' ')}`).toLowerCase().includes(q));
+ $('chordTable').innerHTML=list.map(s=>`<tr data-rowset="${s.n}"><td>${s.n}</td><td>${s.g}</td>${s.c.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+ document.querySelectorAll('[data-rowset]').forEach(r=>r.onclick=()=>{$('chordSetSelect').value=r.dataset.rowset;renderChordSet();window.scrollTo({top:0,behavior:'smooth'})});
+}
+function initPatterns(){
+ for(let i=1;i<=64;i++)$('patternSelect').add(new Option(`Pattern ${i} (PC ${i-1})`,i-1));
+}
+function sendPattern(){const p=+$('patternSelect').value,ch=+$('pcChannel').value;send([0xC0|ch,p],'PC',`Ch${ch+1} Pattern ${p+1}`)}
+function toggleHold(){
+ hold=!hold;const ch=+$('playChannel').value;send([0xB0|ch,64,hold?127:0],'CC',`Hold ${hold?'ON':'OFF'}`);
+ $('holdButton').textContent=hold?'HOLD ON':'HOLD OFF';$('holdButton').classList.toggle('active',hold);
+}
+
+
+let assignmentResizeFrame=null;
+function scheduleAssignmentFit(){
+ cancelAnimationFrame(assignmentResizeFrame);
+ assignmentResizeFrame=requestAnimationFrame(()=>{
+  fitPlayJ6Assignment();
+  fitMidiKeyboard();
+  fitJ6ListAssignment();
+ });
+}
+
+function bind(){
+ const on=(id,event,handler)=>{
+  const el=$(id);
+  if(el)el.addEventListener(event,handler);
+ };
+ on('enableMidi','click',enableMidi);
+ on('reconnectMidi','click',()=>midiAccess?hardReconnectMidi('RECONNECT'):enableMidi());
+ on('resetMidi','click',resetMidiAccess);
+ on('panic','click',panic);
+ on('midiIn','change',()=>connectInput());
+ on('midiOut','change',()=>connectOutput());
+
+ on('inputChannel','change',()=>{
+  resetMidiChannelDetection();
+  if($('inputChannel').value!=='auto'){
+   $('detectedMidiChannel').textContent=$('inputChannel').value==='all'
+    ?'ALL'
+    :`CH ${+$('inputChannel').value+1}`;
+   $('detectedMidiChannel').style.color='var(--text)';
+  }
+ });
+
+ on('velocity','input',()=>{$('velocityValue').textContent=$('velocity').value});
+ on('holdButton','click',toggleHold);
+
+ on('enableAudioInput','click',startAudioInput);
+ on('monitorAudio','click',toggleInputMonitor);
+ on('stopAudioInput','click',()=>stopAudioInput(true));
+ on('audioInputMode','change',async()=>{
+  populateAudioInputSelect();
+  stopAudioInput(false);
+ });
+ on('audioInputDevice','change',()=>{
+  const selected=selectedAudioInput();
+  $('audioInputStatus').textContent=`INPUT：${selected?.label||'—'}`;
+ });
+ on('refreshAudioInputs','click',async()=>{
+  const permissionStream=await listAudioInputs(true);
+  if(permissionStream){
+   permissionStream.getTracks().forEach(track=>track.stop());
+   $('refreshAudioInputs').classList.remove('device-refresh-attention');
+  }
+ });
+ on('audioOutputDevice','change',selectAudioOutput);
+ on('monitorLevel','input',()=>{
+  $('monitorLevelValue').textContent=`${Math.round(+$('monitorLevel').value*100)}%`;
+  if(inputMonitorEnabled&&inputMonitorGain&&audioContext){
+   inputMonitorGain.gain.setTargetAtTime(+$('monitorLevel').value,audioContext.currentTime,.015);
+  }
+ });
+
+ on('playDetectReset','click',resetPlayDetector);
+ on('playDetectConfirm','click',()=>lockPlayDetector('手動確定'));
+ on('applyPlayManualSet','click',applyManualPlaySet);
+ on('playManualSet','input',event=>{
+  event.target.value=event.target.value.replace(/\D/g,'').slice(0,2);
+  event.target.setCustomValidity('');
+ });
+ on('playManualSet','blur',event=>{
+  if(event.target.value)event.target.value=event.target.value.padStart(2,'0');
+ });
+ on('playManualSet','keydown',event=>{
+  if(event.key==='Enter')applyManualPlaySet();
+ });
+
+ window.addEventListener('resize',scheduleAssignmentFit);
+ window.addEventListener('resize',()=>{
+  if(!inputAnalyser)drawEmptyAudioCanvas();
+ });
+ if('ResizeObserver' in window){
+  const observer=new ResizeObserver(scheduleAssignmentFit);
+  ['playJ6AssignmentStage','midiKeyboardStage','j6AssignmentStage'].forEach(id=>{
+   const target=$(id);
+   if(target)observer.observe(target);
+  });
+ }
+
+
+ on('startIdentify','click',startIdentifier);
+ on('captureIdentify','click',captureIdentifier);
+ on('resetIdentify','click',resetIdentifier);
+ on('chordSetSelect','change',()=>{
+  renderChordSet();
+  buildPlayJ6Assignment(+$('chordSetSelect').value);
+});
+ on('transposeSelect','change',renderChordSet);
+ on('chordSearch','input',renderChordTable);
+ on('octave','change',()=>{buildKeyboard();scheduleAssignmentFit()});
+
+ on('sendPattern','click',sendPattern);
+ on('sendStart','click',()=>send([0xFA],'START','Transport start'));
+ on('sendStop','click',()=>send([0xFC],'STOP','Transport stop'));
+ on('clearLog','click',()=>{logEntries.length=0;$('monitor').innerHTML=''});
+
+ document.querySelectorAll('.tabs button').forEach(button=>{
+  button.addEventListener('click',()=>{
+   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===button));
+   document.querySelectorAll('.view').forEach(view=>{
+    view.classList.toggle('active',view.id===`view-${button.dataset.view}`);
+   });
+   requestAnimationFrame(scheduleAssignmentFit);
+  });
+ });
+
+ window.addEventListener('blur',()=>{if(!hold)panic()});
+}
+fillChannels();buildKeyboard();initChordSets();initPatterns();renderIdentifierSteps();renderPlayDetectProgress();buildPlayJ6Assignment(1);bind();if(navigator.mediaDevices){
+ listAudioInputs();
+ listAudioOutputs();
+ navigator.mediaDevices.addEventListener?.('devicechange',()=>{listAudioInputs(false);listAudioOutputs();});
+}initializeEmbeddedChordSets();resetMidiChannelDetection();requestAnimationFrame(()=>{scheduleAssignmentFit();drawEmptyAudioCanvas()});
+</script>
+</body>
+</html>
