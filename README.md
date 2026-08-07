@@ -15,6 +15,7 @@ Roland J-6のUSB MIDI／USB Audioをブラウザで確認できる非公式Web�
 - コード進行と繰り返しの表示
 - USB Audioの波形／FFT表示
 - 音声バイパス
+- スマートフォン横画面向けの演奏ビュー（コードセット自動認識／J-6鍵盤／構成音）
 
 ## Usage
 ### Use in Browser
@@ -35,6 +36,8 @@ http://localhost:8000/j6_composer_lab_v26.html
 ```
 
 画面上部の `MIDI ON` と、Audio Input欄の `DEVICE REFRESH` を最初に押してください。
+
+スマートフォンでは横画面にして `MIDI接続` をタップしてください。演奏画面は横スクロールなしの最小構成になり、`一覧・資料` からコードセット一覧などを開けます。
 
 ## Disclaimer
 
