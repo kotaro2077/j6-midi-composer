@@ -2623,7 +2623,7 @@ function recordChordHistory(chord,{signature='',replaceLast=false}={}){
  if(replaceLast&&chordHistory.length)chordHistory[chordHistory.length-1]=item;
  else chordHistory.push(item);
  lastHistorySignature=compositionSignature;
- if(chordHistory.length>12)chordHistory.shift();
+ if(chordHistory.length>8)chordHistory.shift();
 
  const flow=[...chordHistory];
  const repeated=repeatedProgression(flow);
