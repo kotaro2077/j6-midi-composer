@@ -2,6 +2,12 @@
 
 Roland J-6のUSB MIDI／USB Audioをブラウザで確認できる非公式Webツールです。
 
+## 🎹 Webアプリ
+
+### [▶ J-6 Composer Labをブラウザで開く](https://kotaro2077.github.io/j6-midi-composer/)
+
+> インストール不要です。ChromeまたはEdgeで開き、画面上部の `MIDI ON` を押してください。
+
 ## Features
 
 - MIDI入力とコード構成音の表示

@@ -982,12 +982,32 @@ nav.tabs button,nav.tabs a{
 }
 .metric-progression strong{
  width:100%;
- white-space:normal;
- overflow:visible;
+ display:flex;
+ align-items:center;
+ gap:6px;
+ white-space:nowrap;
+ overflow-x:auto;
  font-size:clamp(1rem,1.5vw,1.3rem);
  line-height:1.35;
  color:#ffd1bd;
- overflow-wrap:anywhere;
+ padding-bottom:3px;
+ scrollbar-width:thin;
+}
+.progression-step{
+ flex:0 0 auto;
+ padding:5px 9px;
+ border:1px solid color-mix(in srgb,var(--accent) 55%,var(--line));
+ background:color-mix(in srgb,var(--accent) 12%,var(--panel2));
+ color:var(--white);
+}
+.progression-step:last-of-type{
+ border-color:var(--accent);
+ background:color-mix(in srgb,var(--accent) 24%,var(--panel2));
+}
+.progression-arrow,.progression-repeat{
+ flex:0 0 auto;
+ color:var(--accent2);
+ font-weight:950;
 }
 #liveProgressionInsight{
  display:block;
@@ -1202,6 +1222,11 @@ nav.tabs button,nav.tabs a{
         </label>
       </div>
       <div class="panel-body">
+        <div class="keyboard-wrap midi-keyboard-wrap">
+          <div id="midiKeyboardStage" class="midi-keyboard-stage">
+            <div id="keyboard" class="keyboard"></div>
+          </div>
+        </div>
         <div class="live-grid" style="margin-bottom:8px">
           <div class="metric metric-chord"><small>コード</small><strong id="liveChord">—</strong></div>
           <div class="metric metric-root"><small>ルート</small><strong id="liveRoot">—</strong></div>
@@ -1214,11 +1239,6 @@ nav.tabs button,nav.tabs a{
         <div class="assignment-guide-bar">
           <span><i class="guide-swatch"></i>選択中コードの構成音</span>
           <div id="assignmentGuideLabel" class="assignment-guide-info"><strong>—</strong></div>
-        </div>
-        <div class="keyboard-wrap midi-keyboard-wrap">
-          <div id="midiKeyboardStage" class="midi-keyboard-stage">
-            <div id="keyboard" class="keyboard"></div>
-          </div>
         </div>
       </div>
     </section>
@@ -1446,7 +1466,7 @@ const activeNotes=new Map(), pointerNotes=new Map(), chordHistory=[];
 const identifier={running:false,index:0,captured:[],lastSignature:'',timer:null};
 const playDetector={index:0,captured:[],lastSignature:'',lastCaptureAt:0,timer:null,bestSet:1,confidence:0,locked:false,secondScore:0,armed:true};
 const midiBurst={notes:new Map(),timer:null,lastAt:0};
-const phraseHarmony={notes:new Map(),timer:null,silenceTimer:null,windowMs:1400,settleMs:320,silenceMs:8000};
+const phraseHarmony={lastEvent:'',lastNoteSignature:'',lastRecordedSignature:''};
 let officialDataReady=false;
 const logEntries=[];
 
@@ -2397,7 +2417,6 @@ function addMidiBurstNote(note,velocity,channel){
  midiBurst.lastAt=performance.now();
  clearTimeout(midiBurst.timer);
  midiBurst.timer=setTimeout(finalizeMidiBurst,145);
- schedulePhraseHarmony(note);
 }
 function chordFromNotes(noteArray){
  const nums=[...new Set(noteArray)].sort((a,b)=>a-b);
@@ -2434,26 +2453,10 @@ function finalizeMidiBurst(){
 
 }
 
-function schedulePhraseHarmony(note){
- const now=performance.now();
- clearTimeout(phraseHarmony.silenceTimer);
- phraseHarmony.notes.set(note,now);
- for(const [storedNote,time] of phraseHarmony.notes){
-  if(now-time>phraseHarmony.windowMs)phraseHarmony.notes.delete(storedNote);
- }
- clearTimeout(phraseHarmony.timer);
- phraseHarmony.timer=setTimeout(finalizePhraseHarmony,phraseHarmony.settleMs);
-}
-
-function scheduleProgressionSilenceReset(){
- clearTimeout(phraseHarmony.silenceTimer);
- phraseHarmony.silenceTimer=setTimeout(resetProgressionHistory,phraseHarmony.silenceMs);
-}
-
 function resetProgressionHistory(){
- clearTimeout(phraseHarmony.timer);
- clearTimeout(phraseHarmony.silenceTimer);
- phraseHarmony.notes.clear();
+ phraseHarmony.lastEvent='';
+ phraseHarmony.lastNoteSignature='';
+ phraseHarmony.lastRecordedSignature='';
  chordHistory.length=0;
  lastHistorySignature='';
  if($('liveProgression'))$('liveProgression').textContent='—';
@@ -2461,18 +2464,45 @@ function resetProgressionHistory(){
  if($('history'))$('history').innerHTML='';
 }
 
-function finalizePhraseHarmony(){
- const now=performance.now();
- for(const [note,time] of phraseHarmony.notes){
-  if(now-time>phraseHarmony.windowMs)phraseHarmony.notes.delete(note);
+function updateProgressionFromActiveNotes(eventType){
+ const notes=inputNoteNumbers();
+ if(!notes.length){
+  resetProgressionHistory();
+  return;
  }
- const notes=[...phraseHarmony.notes.keys()].sort((a,b)=>a-b);
- const pitchClasses=new Set(notes.map(note=>((note%12)+12)%12));
- if(pitchClasses.size<3)return;
+
+ const noteSignature=notes.join(',');
+ phraseHarmony.lastNoteSignature=noteSignature;
+
+ // Note Off only marks the boundary between two groups. Recording on Note Off
+ // would add transient, incomplete chords while fingers are being released.
+ if(eventType!=='noteon'){
+  phraseHarmony.lastEvent=eventType;
+  phraseHarmony.lastRecordedSignature='';
+  return;
+ }
+
+ if(new Set(notes.map(note=>((note%12)+12)%12)).size<3){
+  phraseHarmony.lastEvent=eventType;
+  return;
+ }
+ if(noteSignature===phraseHarmony.lastRecordedSignature){
+  phraseHarmony.lastEvent=eventType;
+  return;
+ }
 
  const chord=chordFromNotes(notes);
- if(chord)recordChordHistory(chord);
- phraseHarmony.notes.clear();
+ if(chord){
+  // Consecutive Note On messages belong to one physical chord gesture. As
+  // additional chord tones arrive, update that rightmost item instead of
+  // creating a row of partial chords.
+  recordChordHistory(chord,{
+   signature:noteSignature,
+   replaceLast:phraseHarmony.lastEvent==='noteon'
+  });
+  phraseHarmony.lastRecordedSignature=noteSignature;
+ }
+ phraseHarmony.lastEvent=eventType;
 }
 
 function matchCurrentJ6Assignment(notes){
@@ -2527,28 +2557,64 @@ function harmonicCore(chord){
  return `${root}:${quality}`;
 }
 
-function recordChordHistory(chord){
+function renderProgression(flow,repeated){
+ const root=$('liveProgression');
+ root.replaceChildren();
+ if(!flow.length){
+  root.textContent='—';
+  return;
+ }
+ if(repeated){
+  const repeat=document.createElement('span');
+  repeat.className='progression-repeat';
+  repeat.textContent='↻';
+  root.appendChild(repeat);
+ }
+ flow.forEach((item,index)=>{
+  if(index){
+   const arrow=document.createElement('span');
+   arrow.className='progression-arrow';
+   arrow.textContent='→';
+   root.appendChild(arrow);
+  }
+  const step=document.createElement('span');
+  step.className='progression-step';
+  step.textContent=item.name;
+  root.appendChild(step);
+ });
+ if(repeated){
+  const count=document.createElement('span');
+  count.className='progression-repeat';
+  count.textContent=`×${repeated.repeats}`;
+  root.appendChild(count);
+ }
+ root.scrollLeft=root.scrollWidth;
+}
+
+function recordChordHistory(chord,{signature='',replaceLast=false}={}){
  if(!chord||new Set(chord.nums.map(note=>((note%12)+12)%12)).size<3)return;
  const assignment=matchCurrentJ6Assignment(chord.nums);
  const resolvedName=assignment?.name||chord.name;
  const core=harmonicCore(chord);
- if(core===lastHistorySignature)return;
- lastHistorySignature=core;
- chordHistory.unshift({
+ const compositionSignature=signature||pitchClassSignature(chord.nums);
+ if(compositionSignature===lastHistorySignature&&!replaceLast)return;
+ const item={
   name:resolvedName,
   core,
+  signature:compositionSignature,
   notes:chord.nums.map(noteName).join(' '),
   key:assignment?.key||null,
   setNo:assignment?.setNo||null
- });
- chordHistory.splice(12);
+ };
+ if(replaceLast&&chordHistory.length)chordHistory[chordHistory.length-1]=item;
+ else chordHistory.push(item);
+ lastHistorySignature=compositionSignature;
+ if(chordHistory.length>12)chordHistory.shift();
 
- const flow=[...chordHistory].reverse();
+ const flow=[...chordHistory];
  const repeated=repeatedProgression(flow);
  const visible=repeated?.pattern||flow.slice(-8);
- $('liveProgression').textContent=repeated
-  ?`↻ ${visible.map(item=>item.name).join('  →  ')}  ×${repeated.repeats}`
-  :visible.map(item=>item.name).join('  →  ')||'—';
+ renderProgression(visible,repeated);
 
  const assigned=visible.filter(item=>item.key);
  const insight=[];
@@ -2647,12 +2713,13 @@ function handleMidi(e,port=null){
   addMidiBurstNote(a,b,ch);
   log('IN','NOTE ON',`Ch${ch+1} ${noteName(a)} vel ${b}`,d);
   updateHarmony();
+  updateProgressionFromActiveNotes('noteon');
  }else if(cmd===0x80||(cmd===0x90&&b===0)){
   activeNotes.delete(a);setKey(a,false);
   log('IN','NOTE OFF',`Ch${ch+1} ${noteName(a)}`,d);
   updateHarmony();
   schedulePlayDetection();
-  if(!inputNoteNumbers().length)scheduleProgressionSilenceReset();
+  updateProgressionFromActiveNotes('noteoff');
  }else if(cmd===0xB0){
   log('IN','CC',`Ch${ch+1} CC${a} = ${b}`,d);
  }else if(cmd===0xC0){
