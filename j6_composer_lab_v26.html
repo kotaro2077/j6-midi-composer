@@ -1005,9 +1005,6 @@ nav.tabs button,nav.tabs a{
 .metric.notes,.metric-progression{
  align-items:flex-start;
 }
-#liveChord,#liveNotes{
- will-change:opacity,filter,transform;
-}
 .metric-progression{
  border-left:4px solid var(--accent);
 }
@@ -2475,10 +2472,10 @@ function finalizeMidiBurst(){
  const notes=entries.map(([n])=>n),info=chordFromNotes(notes);
  if(info){
   const display=harmonyDisplay(info);
-  setSoftText('liveChord',display.chord);
+  $('liveChord').textContent=display.chord;
   $('liveRoot').textContent=display.root;
   $('liveBass').textContent=display.bass;
-  setSoftText('liveNotes',display.notes);
+  $('liveNotes').textContent=display.notes;
   const avg=Math.round(entries.reduce((s,[,x])=>s+x.velocity,0)/entries.length);
   $('liveVelocity').textContent=avg;
   recordChordHistory(info,{signature:pitchClassSignature(info.nums)});
@@ -2783,43 +2780,6 @@ function chordInterpretation(){
 }
 let selectedAssignmentGuide={pcs:new Set(),label:'—',setNo:null,triggerPc:null,assignmentPc:null,notes:[]};
 let lastHistorySignature='';
-const softTextTransitions=new WeakMap();
-function setSoftText(id,value){
- const el=$(id);
- const next=String(value);
- if(!el)return;
- const previous=softTextTransitions.get(el);
- if(previous?.next===next)return;
- if(previous){
-  previous.cancelled=true;
-  el.getAnimations().forEach(animation=>animation.cancel());
- }
- if(el.textContent===next){
-  softTextTransitions.delete(el);
-  return;
- }
- if(matchMedia('(prefers-reduced-motion: reduce)').matches){
-  el.textContent=next;
-  return;
- }
- const state={cancelled:false,next};
- softTextTransitions.set(el,state);
- const fadeOut=el.animate([
-  {opacity:1,filter:'blur(0)',transform:'translateY(0)'},
-  {opacity:.18,filter:'blur(3px)',transform:'translateY(-2px)'}
- ],{duration:105,easing:'ease-in',fill:'forwards'});
- fadeOut.finished.then(()=>{
-  if(state.cancelled)return;
-  el.textContent=next;
-  const fadeIn=el.animate([
-   {opacity:.18,filter:'blur(3px)',transform:'translateY(2px)'},
-   {opacity:1,filter:'blur(0)',transform:'translateY(0)'}
-  ],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
-  return fadeIn.finished;
- }).then(()=>{
-  if(!state.cancelled)softTextTransitions.delete(el);
- }).catch(()=>{});
-}
 function renderAssignmentGuide(guide=selectedAssignmentGuide){
  const root=$('assignmentGuideLabel');
  if(!root)return;
@@ -2855,10 +2815,10 @@ function updateHarmony(){
  }
 
  const display=harmonyDisplay(c);
- setSoftText('liveChord',display.chord);
+ $('liveChord').textContent=display.chord;
  $('liveRoot').textContent=display.root;
  $('liveBass').textContent=display.bass;
- setSoftText('liveNotes',display.notes);
+ $('liveNotes').textContent=display.notes;
  const avg=Math.round(c.nums.reduce((sum,n)=>sum+(activeNotes.get(n)?.v||0),0)/c.nums.length);
  $('liveVelocity').textContent=avg;
 
