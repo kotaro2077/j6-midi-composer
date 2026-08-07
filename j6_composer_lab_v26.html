@@ -2971,7 +2971,9 @@ function refreshMidiVisuals(){
 
   key.classList.toggle('assignment-guide',selectedAssignmentGuide.pcs.has(pc));
   key.classList.toggle('active',heldSet.has(note));
-  key.classList.toggle('chord-tone',heldPcs.has(pc));
+  // Show the input marker only on the exact MIDI note that was received.
+  // Do not repeat it on every octave merely because the pitch class matches.
+  key.classList.toggle('chord-tone',heldSet.has(note));
  });
 
  if(!selectedAssignmentGuide.pcs.size){
