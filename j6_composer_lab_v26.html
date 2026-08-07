@@ -2847,11 +2847,8 @@ function updateHarmony(){
  const c=chordInterpretation();
 
  if(!c){
-  setSoftText('liveChord','—');
-  $('liveRoot').textContent='—';
-  $('liveBass').textContent='—';
-  $('liveVelocity').textContent='—';
-  setSoftText('liveNotes','—');
+  // Keep the most recently recognized harmony visible during silence.
+  // Only the live keyboard markers should clear when Note Off is received.
   refreshMidiVisuals();
   schedulePlayDetection();
   return;
