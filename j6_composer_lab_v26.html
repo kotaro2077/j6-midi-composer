@@ -1497,7 +1497,7 @@ const activeNotes=new Map(), pointerNotes=new Map(), chordHistory=[];
 const identifier={running:false,index:0,captured:[],lastSignature:'',timer:null};
 const playDetector={index:0,captured:[],lastSignature:'',lastCaptureAt:0,timer:null,bestSet:1,confidence:0,locked:false,secondScore:0,armed:true};
 const midiBurst={notes:new Map(),timer:null,lastAt:0};
-const phraseHarmony={lastEvent:'',lastNoteSignature:'',lastRecordedSignature:'',resetTimer:null,silenceResetMs:1500};
+const phraseHarmony={resetTimer:null,silenceResetMs:12000};
 let officialDataReady=false;
 const logEntries=[];
 
@@ -2481,6 +2481,7 @@ function finalizeMidiBurst(){
   setSoftText('liveNotes',display.notes);
   const avg=Math.round(entries.reduce((s,[,x])=>s+x.velocity,0)/entries.length);
   $('liveVelocity').textContent=avg;
+  recordChordHistory(info,{signature:pitchClassSignature(info.nums)});
  }
 
 }
@@ -2488,9 +2489,6 @@ function finalizeMidiBurst(){
 function resetProgressionHistory(){
  clearTimeout(phraseHarmony.resetTimer);
  phraseHarmony.resetTimer=null;
- phraseHarmony.lastEvent='';
- phraseHarmony.lastNoteSignature='';
- phraseHarmony.lastRecordedSignature='';
  chordHistory.length=0;
  lastHistorySignature='';
  if($('liveProgression'))$('liveProgression').textContent='—';
@@ -2498,55 +2496,15 @@ function resetProgressionHistory(){
  if($('history'))$('history').innerHTML='';
 }
 
-function updateProgressionFromActiveNotes(eventType){
- const notes=inputNoteNumbers();
- if(!notes.length){
-  phraseHarmony.lastEvent='noteoff';
-  phraseHarmony.lastNoteSignature='';
-  phraseHarmony.lastRecordedSignature='';
-  clearTimeout(phraseHarmony.resetTimer);
-  phraseHarmony.resetTimer=setTimeout(
-   resetProgressionHistory,
-   phraseHarmony.silenceResetMs
-  );
-  return;
- }
-
+function keepProgressionAlive(){
  clearTimeout(phraseHarmony.resetTimer);
  phraseHarmony.resetTimer=null;
+}
 
- const noteSignature=notes.join(',');
- phraseHarmony.lastNoteSignature=noteSignature;
-
- // Note Off only marks the boundary between two groups. Recording on Note Off
- // would add transient, incomplete chords while fingers are being released.
- if(eventType!=='noteon'){
-  phraseHarmony.lastEvent=eventType;
-  phraseHarmony.lastRecordedSignature='';
-  return;
- }
-
- if(new Set(notes.map(note=>((note%12)+12)%12)).size<3){
-  phraseHarmony.lastEvent=eventType;
-  return;
- }
- if(noteSignature===phraseHarmony.lastRecordedSignature){
-  phraseHarmony.lastEvent=eventType;
-  return;
- }
-
- const chord=chordFromNotes(notes);
- if(chord){
-  // Consecutive Note On messages belong to one physical chord gesture. As
-  // additional chord tones arrive, update that rightmost item instead of
-  // creating a row of partial chords.
-  recordChordHistory(chord,{
-   signature:noteSignature,
-   replaceLast:phraseHarmony.lastEvent==='noteon'
-  });
-  phraseHarmony.lastRecordedSignature=noteSignature;
- }
- phraseHarmony.lastEvent=eventType;
+function scheduleProgressionReset(){
+ if(inputNoteNumbers().length)return;
+ clearTimeout(phraseHarmony.resetTimer);
+ phraseHarmony.resetTimer=setTimeout(resetProgressionHistory,phraseHarmony.silenceResetMs);
 }
 
 function matchCurrentJ6Assignment(notes){
@@ -2769,16 +2727,16 @@ function handleMidi(e,port=null){
  if(!midiChannelAccepted(ch))return;
  if(cmd===0x90&&b>0){
   activeNotes.set(a,{v:b,source:'in'});setKey(a,true);
-  addMidiBurstNote(a,b,ch);
+ addMidiBurstNote(a,b,ch);
+  keepProgressionAlive();
   log('IN','NOTE ON',`Ch${ch+1} ${noteName(a)} vel ${b}`,d);
   updateHarmony();
-  updateProgressionFromActiveNotes('noteon');
  }else if(cmd===0x80||(cmd===0x90&&b===0)){
   activeNotes.delete(a);setKey(a,false);
   log('IN','NOTE OFF',`Ch${ch+1} ${noteName(a)}`,d);
   updateHarmony();
   schedulePlayDetection();
-  updateProgressionFromActiveNotes('noteoff');
+  scheduleProgressionReset();
  }else if(cmd===0xB0){
   log('IN','CC',`Ch${ch+1} CC${a} = ${b}`,d);
  }else if(cmd===0xC0){
