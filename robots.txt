@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kotaro2077.github.io/j6-midi-composer/sitemap.xml

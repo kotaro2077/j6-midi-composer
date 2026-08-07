@@ -3,8 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Roland J-6専用 USB MIDI 作曲・学習ツール。鍵盤、コード判定、J-6コードセット、音色バンク、MIDIモニターを1画面で確認できます。">
-<title>J-6 Composer Lab</title>
+<title>Roland J-6 MIDIコード判定・作曲ツール | J-6 Composer Lab</title>
+<meta name="description" content="Roland J-6のMIDIコード判定、全100コードセットの鍵盤割り当て、構成音、コード進行、USB Audioをブラウザで確認できる無料の非公式作曲・学習ツール。インストール不要。">
+<meta name="keywords" content="Roland J-6,J-6 MIDI,J-6 コードセット,コード判定,コード構成音,MIDI 作曲,USB MIDI,コード進行">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<link rel="canonical" href="https://kotaro2077.github.io/j6-midi-composer/j6_composer_lab_v26.html">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:site_name" content="J-6 Composer Lab">
+<meta property="og:title" content="Roland J-6 MIDIコード判定・作曲ツール">
+<meta property="og:description" content="J-6の全100コードセット、構成音、コード進行、USB MIDI／Audioをブラウザで確認できる無料ツール。">
+<meta property="og:url" content="https://kotaro2077.github.io/j6-midi-composer/j6_composer_lab_v26.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Roland J-6 MIDIコード判定・作曲ツール">
+<meta name="twitter:description" content="J-6の全100コードセットとMIDI構成音をブラウザで確認できる無料ツール。">
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"SoftwareApplication",
+  "name":"J-6 Composer Lab",
+  "url":"https://kotaro2077.github.io/j6-midi-composer/j6_composer_lab_v26.html",
+  "description":"Roland J-6のMIDIコード判定、コードセット、構成音、コード進行、USB Audioを確認できる非公式Webツール。",
+  "applicationCategory":"MultimediaApplication",
+  "applicationSubCategory":"Music composition and MIDI learning tool",
+  "operatingSystem":"Windows, macOS, ChromeOS",
+  "browserRequirements":"Web MIDI対応のGoogle ChromeまたはMicrosoft Edge",
+  "inLanguage":"ja",
+  "isAccessibleForFree":true,
+  "offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}
+}
+</script>
 <style>
 :root{
  --bg:#08090b;
@@ -977,6 +1005,9 @@ nav.tabs button,nav.tabs a{
 .metric.notes,.metric-progression{
  align-items:flex-start;
 }
+#liveChord,#liveNotes{
+ will-change:opacity,filter,transform;
+}
 .metric-progression{
  border-left:4px solid var(--accent);
 }
@@ -1466,7 +1497,7 @@ const activeNotes=new Map(), pointerNotes=new Map(), chordHistory=[];
 const identifier={running:false,index:0,captured:[],lastSignature:'',timer:null};
 const playDetector={index:0,captured:[],lastSignature:'',lastCaptureAt:0,timer:null,bestSet:1,confidence:0,locked:false,secondScore:0,armed:true};
 const midiBurst={notes:new Map(),timer:null,lastAt:0};
-const phraseHarmony={lastEvent:'',lastNoteSignature:'',lastRecordedSignature:''};
+const phraseHarmony={lastEvent:'',lastNoteSignature:'',lastRecordedSignature:'',resetTimer:null,silenceResetMs:1500};
 let officialDataReady=false;
 const logEntries=[];
 
@@ -2443,10 +2474,11 @@ function finalizeMidiBurst(){
  if(!entries.length)return;
  const notes=entries.map(([n])=>n),info=chordFromNotes(notes);
  if(info){
-  $('liveChord').textContent=info.name;
-  $('liveRoot').textContent=noteNames[info.root];
-  $('liveBass').textContent=noteNames[info.bass];
-  $('liveNotes').textContent=info.nums.map(noteName).join(' · ');
+  const display=harmonyDisplay(info);
+  setSoftText('liveChord',display.chord);
+  $('liveRoot').textContent=display.root;
+  $('liveBass').textContent=display.bass;
+  setSoftText('liveNotes',display.notes);
   const avg=Math.round(entries.reduce((s,[,x])=>s+x.velocity,0)/entries.length);
   $('liveVelocity').textContent=avg;
  }
@@ -2454,6 +2486,8 @@ function finalizeMidiBurst(){
 }
 
 function resetProgressionHistory(){
+ clearTimeout(phraseHarmony.resetTimer);
+ phraseHarmony.resetTimer=null;
  phraseHarmony.lastEvent='';
  phraseHarmony.lastNoteSignature='';
  phraseHarmony.lastRecordedSignature='';
@@ -2467,9 +2501,19 @@ function resetProgressionHistory(){
 function updateProgressionFromActiveNotes(eventType){
  const notes=inputNoteNumbers();
  if(!notes.length){
-  resetProgressionHistory();
+  phraseHarmony.lastEvent='noteoff';
+  phraseHarmony.lastNoteSignature='';
+  phraseHarmony.lastRecordedSignature='';
+  clearTimeout(phraseHarmony.resetTimer);
+  phraseHarmony.resetTimer=setTimeout(
+   resetProgressionHistory,
+   phraseHarmony.silenceResetMs
+  );
   return;
  }
+
+ clearTimeout(phraseHarmony.resetTimer);
+ phraseHarmony.resetTimer=null;
 
  const noteSignature=notes.join(',');
  phraseHarmony.lastNoteSignature=noteSignature;
@@ -2524,6 +2568,21 @@ function matchCurrentJ6Assignment(notes){
   }
  }
  return null;
+}
+
+function harmonyDisplay(c){
+ const assignment=matchCurrentJ6Assignment(c.nums);
+ const chord=assignment?.name||c.name;
+ const writtenRoot=chord.match(/^([A-G](?:#|b)?)/)?.[1]||'';
+ const preferFlats=writtenRoot.includes('b')||/\/[A-G]b/.test(chord);
+ const names=preferFlats?flatNames:noteNames;
+ const displayNote=n=>`${names[(n%12+12)%12]}${Math.floor(n/12)-1}`;
+ return {
+  chord,
+  root:writtenRoot||names[c.root],
+  bass:names[c.bass],
+  notes:c.nums.map(displayNote).join(' · ')
+ };
 }
 
 function repeatedProgression(flow){
@@ -2766,6 +2825,43 @@ function chordInterpretation(){
 }
 let selectedAssignmentGuide={pcs:new Set(),label:'—',setNo:null,triggerPc:null,assignmentPc:null,notes:[]};
 let lastHistorySignature='';
+const softTextTransitions=new WeakMap();
+function setSoftText(id,value){
+ const el=$(id);
+ const next=String(value);
+ if(!el)return;
+ const previous=softTextTransitions.get(el);
+ if(previous?.next===next)return;
+ if(previous){
+  previous.cancelled=true;
+  el.getAnimations().forEach(animation=>animation.cancel());
+ }
+ if(el.textContent===next){
+  softTextTransitions.delete(el);
+  return;
+ }
+ if(matchMedia('(prefers-reduced-motion: reduce)').matches){
+  el.textContent=next;
+  return;
+ }
+ const state={cancelled:false,next};
+ softTextTransitions.set(el,state);
+ const fadeOut=el.animate([
+  {opacity:1,filter:'blur(0)',transform:'translateY(0)'},
+  {opacity:.18,filter:'blur(3px)',transform:'translateY(-2px)'}
+ ],{duration:105,easing:'ease-in',fill:'forwards'});
+ fadeOut.finished.then(()=>{
+  if(state.cancelled)return;
+  el.textContent=next;
+  const fadeIn=el.animate([
+   {opacity:.18,filter:'blur(3px)',transform:'translateY(2px)'},
+   {opacity:1,filter:'blur(0)',transform:'translateY(0)'}
+  ],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)',fill:'forwards'});
+  return fadeIn.finished;
+ }).then(()=>{
+  if(!state.cancelled)softTextTransitions.delete(el);
+ }).catch(()=>{});
+}
 function renderAssignmentGuide(guide=selectedAssignmentGuide){
  const root=$('assignmentGuideLabel');
  if(!root)return;
@@ -2793,20 +2889,21 @@ function updateHarmony(){
  const c=chordInterpretation();
 
  if(!c){
-  $('liveChord').textContent='—';
+  setSoftText('liveChord','—');
   $('liveRoot').textContent='—';
   $('liveBass').textContent='—';
   $('liveVelocity').textContent='—';
-  $('liveNotes').textContent='—';
+  setSoftText('liveNotes','—');
   refreshMidiVisuals();
   schedulePlayDetection();
   return;
  }
 
- $('liveChord').textContent=c.name;
- $('liveRoot').textContent=noteNames[c.root];
- $('liveBass').textContent=noteNames[c.bass];
- $('liveNotes').textContent=c.nums.map(noteName).join(' · ');
+ const display=harmonyDisplay(c);
+ setSoftText('liveChord',display.chord);
+ $('liveRoot').textContent=display.root;
+ $('liveBass').textContent=display.bass;
+ setSoftText('liveNotes',display.notes);
  const avg=Math.round(c.nums.reduce((sum,n)=>sum+(activeNotes.get(n)?.v||0),0)/c.nums.length);
  $('liveVelocity').textContent=avg;
 
