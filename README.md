@@ -11,7 +11,13 @@ Roland J-6のUSB MIDI／USB Audioをブラウザで確認できる非公式Web�
 - 音声バイパス
 
 ## Usage
+### Use in Browser
+Access here
+```
+https://kotaro2077.github.io/j6-midi-composer/index.html
+```
 
+### Use in Local
 ```bash
 python3 -m http.server 8000
 ```
