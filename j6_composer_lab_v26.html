@@ -8,6 +8,9 @@
 <meta name="keywords" content="Roland J-6,J-6 MIDI,J-6 コードセット,コード判定,コード構成音,MIDI 作曲,USB MIDI,コード進行">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
 <link rel="canonical" href="https://kotaro2077.github.io/j6-midi-composer/j6_composer_lab_v26.html">
+<link rel="alternate" hreflang="ja" href="https://kotaro2077.github.io/j6-midi-composer/j6_composer_lab_v26.html?lang=ja">
+<link rel="alternate" hreflang="en" href="https://kotaro2077.github.io/j6-midi-composer/j6_composer_lab_v26.html?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://kotaro2077.github.io/j6-midi-composer/j6_composer_lab_v26.html">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ja_JP">
 <meta property="og:site_name" content="J-6 Composer Lab">
@@ -1067,7 +1070,44 @@ nav.tabs button,nav.tabs a{
  border:2px solid var(--accent2);
 }
 #playManualSet:invalid{border-color:var(--red)}
-#applyPlayManualSet{width:auto}
+#playManualSet{
+ border:1px solid #4b5059!important;
+ background:#111319!important;
+ color:var(--muted)!important;
+}
+.detect-result{
+ grid-template-columns:minmax(145px,.24fr) minmax(0,1fr) auto!important;
+}
+#playDetectReset{
+ align-self:stretch;
+ min-width:145px;
+ min-height:52px;
+ padding:10px 18px;
+ background:var(--accent)!important;
+ border-color:var(--accent)!important;
+ color:#140b06!important;
+ font-size:1.05rem;
+ letter-spacing:.04em;
+ box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);
+}
+#playDetectReset:hover{filter:brightness(1.08)}
+.manual-set-actions{opacity:.62;transition:opacity .15s ease}
+.manual-set-actions:hover,.manual-set-actions:focus-within{opacity:1}
+#applyPlayManualSet{
+ width:auto;
+ min-height:34px;
+ padding:6px 9px;
+ background:#171a20!important;
+ border-color:#4b5059!important;
+ color:var(--muted)!important;
+ font-size:.7rem;
+ letter-spacing:.04em;
+ box-shadow:none!important;
+}
+@media(max-width:720px) and (orientation:portrait){
+ .detect-result{grid-template-columns:1fr!important}
+ #playDetectReset{width:100%;min-height:48px}
+}
 .audio-visual-grid{
  display:grid;
  grid-template-columns:repeat(2,minmax(0,1fr));
@@ -1132,6 +1172,15 @@ nav.tabs button,nav.tabs a{
  font-weight:950;
  letter-spacing:.04em;
 }
+html[lang="en"] .device-refresh-attention::after{content:'START HERE'}
+.language-switch{display:flex;gap:4px;margin-left:auto}
+.language-switch a{
+ display:inline-flex;align-items:center;justify-content:center;min-width:42px;min-height:30px;
+ padding:4px 9px;border:1px solid #464c57;background:#15181e;color:var(--text);
+ text-decoration:none;font-size:.72rem;font-weight:950;letter-spacing:.06em
+}
+.language-switch a:hover{border-color:var(--accent)}
+.language-switch a[aria-current="page"]{background:var(--accent);border-color:var(--accent);color:#101114}
 @keyframes deviceRefreshPulse{
  0%,100%{box-shadow:0 0 0 0 rgba(57,169,255,.25)}
  50%{box-shadow:0 0 0 5px rgba(57,169,255,.2),0 0 20px rgba(57,169,255,.78)}
@@ -1154,13 +1203,178 @@ nav.tabs button,nav.tabs a{
 }
 
 </style>
+<style>
+/* Mobile landscape: the performance surface stays on one screen. */
+.mobile-command-bar{display:none}
+.mobile-language-switch{display:none}
+.mobile-settings-button{display:none}
+.mobile-reference-close{display:none}
+@media (max-width:1180px) and (max-height:820px) and (orientation:landscape){
+ html,body{height:100%;overflow:hidden}
+ body{overscroll-behavior:none}
+ main{width:100%;height:100dvh;max-width:none;padding:4px;overflow:hidden}
+ .unofficial-notice,header,nav.tabs,.audio-panel,.compact-tools{display:none!important}
+.mobile-command-bar{
+  height:40px;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto auto;gap:6px;
+  align-items:center;background:#0c0e12;border:1px solid var(--line);border-bottom:3px solid var(--accent);
+  padding:3px 5px;margin-bottom:4px
+ }
+ .mobile-command-bar .mobile-logo{font-size:.8rem;font-weight:950;letter-spacing:.08em;white-space:nowrap}
+ .mobile-midi-state{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;font-size:.72rem;font-weight:850}
+ .mobile-midi-state strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .mobile-command-bar button{min-height:30px;height:30px;width:auto;padding:3px 10px;font-size:.72rem}
+ .mobile-settings-button{display:none!important}
+ .mobile-language-switch{display:flex;margin-left:0;gap:2px}
+ .mobile-language-switch a{min-width:30px;min-height:28px;padding:2px 5px;font-size:.62rem}
+ .workspace{height:calc(100dvh - 48px);margin:0;overflow:hidden}
+ #view-play{height:100%}
+ #view-play>.stack{
+  height:100%;display:grid!important;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important;
+  grid-template-rows:1fr;gap:4px!important
+ }
+ #view-play>.stack>section:nth-of-type(1),#view-play>.stack>section:nth-of-type(2){
+  display:flex;flex-direction:column;min-height:0;grid-row:1!important
+ }
+ #view-play>.stack>section:nth-of-type(1){grid-column:1!important}
+ #view-play>.stack>section:nth-of-type(2){grid-column:2!important}
+ #view-play .panel-head{min-height:31px;padding:4px 8px;border-bottom-width:2px}
+ #view-play .panel-head h2{font-size:.72rem;letter-spacing:.04em}
+ #view-play .panel-head span,#view-play .octave-control{font-size:.62rem}
+ #view-play .octave-control select{height:25px;min-height:25px;padding:1px 4px}
+ #view-play .panel-body{padding:4px!important;min-height:0;display:flex;flex-direction:column;flex:1}
+ .detect-result{padding:4px 6px!important;min-height:45px;grid-template-columns:auto minmax(0,1fr)!important}
+ .detect-result small{font-size:.58rem}.detect-result br{display:none}
+ .detect-result strong{display:block;font-size:.86rem;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .detect-result .toggle-row{flex-wrap:nowrap;gap:3px}
+ .manual-set-actions{display:none!important}
+ #playDetectReset{min-width:112px;min-height:37px;height:37px;width:auto;padding:3px 10px;font-size:.7rem}
+ #playDetectProgress{grid-template-columns:repeat(12,1fr);gap:1px;margin-top:3px!important}
+ #playDetectProgress span{min-width:0;padding:3px 0;font-size:.52rem}
+ #playDetectHint{margin-top:3px!important;padding:3px 6px!important;font-size:.58rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .mini-assignment-wrap{margin-top:3px!important;padding:3px!important;flex:1;min-height:0;display:flex;align-items:center}
+ #playJ6AssignmentStage{width:100%}
+ #playJ6Assignment{height:250px!important}
+ #playJ6Assignment .j6-key.white{height:100%!important}
+ #playJ6Assignment .j6-key.black{height:62%!important}
+ #playJ6Assignment .assigned-chord{font-size:1.35rem!important}
+ #playJ6Assignment .assigned-notes{font-size:.62rem!important}
+ #playJ6Assignment .trigger-note{font-size:.72rem!important}
+ .midi-keyboard-wrap{padding:3px!important;flex:0 0 auto}
+ .keyboard{height:104px!important}
+ .key.black{height:64px!important}
+ .live-grid{display:grid!important;grid-template-columns:1fr!important;gap:3px!important;margin:4px 0 0!important}
+ .live-grid .metric{display:none}
+ .live-grid .metric-chord,.live-grid .metric.notes{display:block;min-height:0;padding:5px 7px!important}
+ .live-grid .metric small{display:inline;margin:0 6px 0 0;font-size:.58rem}
+ .live-grid .metric strong{display:inline;font-size:.82rem!important;line-height:1.1}
+ .assignment-guide-bar{margin-top:3px;padding:4px 6px!important;font-size:.58rem}
+ .assignment-guide-bar>span{display:none}
+ .mobile-reference-open main{height:100dvh;overflow:auto}
+ .mobile-reference-open .workspace{height:auto;overflow:visible}
+ .mobile-reference-open .mobile-command-bar{position:sticky;top:0;z-index:50}
+ .mobile-reference-open nav.tabs{display:flex!important;position:sticky;top:40px;z-index:49;overflow:visible;flex-wrap:wrap!important;padding:5px}
+ .mobile-reference-open nav.tabs button,.mobile-reference-open nav.tabs a{flex:1 1 130px!important;font-size:.68rem;padding:5px;min-height:30px}
+ .mobile-reference-open #view-play{display:none!important}
+ .mobile-reference-open .view.active{display:block;height:auto}
+ .mobile-reference-open .mobile-reference-close{display:inline-flex}
+}
+</style>
+<style>
+/* Final responsive layout: wide workstation, compact tablet, and phone-first controls. */
+@media (min-width:1500px) and (min-height:800px){
+ #view-play>.stack{
+  grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr)!important;
+  align-items:start;
+ }
+ #view-play>.stack>section:nth-of-type(1){grid-column:1!important;grid-row:1!important}
+ #view-play>.stack>section:nth-of-type(2){grid-column:2!important;grid-row:1!important}
+ #view-play>.stack>.audio-panel{grid-column:1/-1!important;grid-row:auto!important}
+}
+
+@media (min-width:801px) and (max-width:1180px) and (orientation:portrait){
+ nav.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+ nav.tabs button,nav.tabs a{flex:0 0 auto}
+ .connection{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .connection .wide{grid-column:span 3!important}
+}
+
+@media (max-width:800px) and (orientation:portrait){
+ main{width:100%;padding:4px}
+ .unofficial-notice,header{display:none!important}
+ .mobile-command-bar{
+  position:sticky;top:0;z-index:80;
+  display:grid;
+  grid-template-columns:minmax(0,.85fr) minmax(0,1fr) minmax(0,1fr) auto;
+  gap:3px;min-height:44px;padding:4px;margin-bottom:4px;
+  background:#0c0e12;border:1px solid var(--line);border-bottom:3px solid var(--accent);
+ }
+ .mobile-logo,.mobile-midi-state{display:none}
+ .mobile-settings-button{display:block!important}
+ .mobile-command-bar button{
+  width:auto;min-width:0;min-height:34px;height:auto;padding:4px 6px;
+  font-size:clamp(.6rem,2.7vw,.72rem);line-height:1.05;
+ }
+ .mobile-language-switch{display:flex;margin:0;gap:2px;align-items:stretch}
+ .mobile-language-switch a{min-width:30px;min-height:34px;padding:3px 5px;font-size:.6rem}
+ body.mobile-settings-open header{display:block!important;margin-bottom:4px}
+ body.mobile-settings-open .connection{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  padding:6px!important;gap:5px!important;
+ }
+ body.mobile-settings-open .connection .panel-head,
+ body.mobile-settings-open .connection .wide{grid-column:1/-1!important}
+ body.mobile-settings-open .connection button,
+ body.mobile-settings-open .connection select{min-height:36px}
+ body.mobile-settings-open .midi-restart-note{white-space:normal}
+ nav.tabs{
+  position:sticky;top:44px;z-index:70;
+  flex-wrap:nowrap!important;overflow-x:auto;padding:5px 4px;
+  scroll-snap-type:x proximity;scrollbar-width:thin;
+ }
+ nav.tabs button,nav.tabs a{
+  flex:0 0 auto!important;width:auto;min-height:32px;padding:5px 9px;
+  scroll-snap-align:start;font-size:.68rem;
+ }
+ .panel-head{min-height:38px;align-items:center}
+ .panel-head h2{font-size:.82rem}
+ .detect-result{
+  grid-template-columns:minmax(108px,.42fr) minmax(0,1fr)!important;
+  gap:6px!important;
+ }
+ #playDetectReset{width:100%;min-width:108px;min-height:46px;padding:7px 10px;font-size:.88rem}
+ .detected-set-summary{min-width:0}
+ .manual-set-actions{grid-column:1/-1;justify-content:flex-end;align-items:center;flex-wrap:nowrap;min-height:34px}
+ .manual-set-control{margin-left:auto}
+ #applyPlayManualSet{width:54px!important;min-width:54px;flex:0 0 54px!important}
+ .mini-assignment-wrap{padding:4px!important}
+ .audio-route-grid,.audio-route-status{grid-template-columns:1fr!important}
+ .reference-grid,.device-guide{grid-template-columns:1fr}
+}
+
+@media (max-width:370px) and (orientation:portrait){
+ .mobile-command-bar{grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,.9fr) auto}
+ .mobile-command-bar button{padding-inline:4px;font-size:.58rem}
+ .mobile-language-switch a{min-width:27px;padding-inline:3px}
+ .detect-result{grid-template-columns:1fr!important}
+ .manual-set-actions{justify-content:flex-start}
+ .manual-set-control{margin-left:0}
+}
+</style>
 </head>
 <body>
 <main>
+<div class="mobile-command-bar" aria-label="スマートフォン操作バー">
+  <span class="mobile-logo">J-6 VIEW</span>
+  <span class="mobile-midi-state"><i id="mobileStatusDot" class="status-dot"></i><strong id="mobileStatusText">MIDI未接続</strong></span>
+  <button id="mobileSettingsButton" class="mobile-settings-button">MIDI設定</button>
+  <button id="mobileMidiButton" class="primary">MIDI接続</button>
+  <button id="mobileReferenceButton">一覧・資料</button>
+  <nav class="language-switch mobile-language-switch" aria-label="Language"><a href="?lang=ja" lang="ja">JP</a><a href="?lang=en" lang="en">EN</a></nav>
+</div>
 <p class="unofficial-notice">本Webサイトは非公式であり、Rolandの公式情報をもとに有志が制作したサイトです。Roland株式会社とは関係ありません。</p>
 <header>
   <section class="connection panel">
-    <div class="panel-head wide"><h2>MIDI設定</h2></div>
+    <div class="panel-head wide"><h2>MIDI設定</h2><nav class="language-switch" aria-label="Language"><a id="langJa" href="?lang=ja" lang="ja">JP</a><a id="langEn" href="?lang=en" lang="en">EN</a></nav></div>
     <button id="enableMidi" class="primary device-refresh-attention">MIDI ON</button>
     <button id="reconnectMidi">RECONNECT</button>
     <button id="resetMidi">MIDI RESET</button>
@@ -1215,17 +1429,17 @@ nav.tabs button,nav.tabs a{
       </div>
       <div class="panel-body">
         <div class="detect-result">
-          <div>
+          <button id="playDetectReset" class="primary">再判定</button>
+          <div class="detected-set-summary">
             <small style="color:var(--muted);font-weight:800">自動判定コードセット</small><br>
             <strong id="playDetectedSet">—</strong>
           </div>
-          <div class="toggle-row">
+          <div class="toggle-row manual-set-actions">
             <label class="manual-set-control">手動設定
               <input id="playManualSet" type="text" inputmode="numeric" pattern="[0-9]{2}" maxlength="2" value="01" aria-label="コードセット番号（2桁）">
             </label>
-            <button id="applyPlayManualSet" class="primary">SET</button>
+            <button id="applyPlayManualSet">SET</button>
             <button id="playDetectConfirm" hidden>確定</button>
-            <button id="playDetectReset">再判定</button>
           </div>
         </div>
         <div id="playDetectProgress" class="detect-progress"></div>
@@ -1467,6 +1681,7 @@ nav.tabs button,nav.tabs a{
 </section>
 </div>
 </main>
+<script src="./i18n.js"></script>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -3219,7 +3434,11 @@ function fitPlayJ6Assignment(){
  const baseWidth=+(root.dataset.baseWidth||1190);
  const baseHeight=+(root.dataset.baseHeight||330);
  const available=Math.max(180,wrap.clientWidth);
- const scale=Math.min(1,available/baseWidth);
+ const mobileLandscape=window.matchMedia('(max-width:1180px) and (max-height:820px) and (orientation:landscape)').matches;
+ const heightLimit=mobileLandscape
+  ?Math.max(90,(wrap.parentElement?.clientHeight||baseHeight)-4)
+  :baseHeight;
+ const scale=Math.min(1,available/baseWidth,heightLimit/baseHeight);
  root.style.transform=`scale(${scale})`;
  wrap.style.height=`${Math.ceil(baseHeight*scale)}px`;
 }
@@ -3444,6 +3663,25 @@ function bind(){
   if(el)el.addEventListener(event,handler);
  };
  on('enableMidi','click',enableMidi);
+ on('mobileMidiButton','click',()=>midiAccess?hardReconnectMidi('RECONNECT'):enableMidi());
+ on('mobileSettingsButton','click',()=>{
+  const opening=!document.body.classList.contains('mobile-settings-open');
+  document.body.classList.toggle('mobile-settings-open',opening);
+  $('mobileSettingsButton').textContent=opening?'閉じる':'MIDI設定';
+  if(opening)document.body.classList.remove('mobile-reference-open');
+  requestAnimationFrame(scheduleAssignmentFit);
+ });
+ on('mobileReferenceButton','click',()=>{
+  const opening=!document.body.classList.contains('mobile-reference-open');
+  document.body.classList.toggle('mobile-reference-open',opening);
+  $('mobileReferenceButton').textContent=opening?'鍵盤へ':'一覧・資料';
+  if(opening){
+   const chordsTab=document.querySelector('.tabs button[data-view="chords"]');
+   chordsTab?.click();
+  }else{
+   document.querySelector('.tabs button[data-view="play"]')?.click();
+  }
+ });
  on('reconnectMidi','click',()=>midiAccess?hardReconnectMidi('RECONNECT'):enableMidi());
  on('resetMidi','click',resetMidiAccess);
  on('panic','click',panic);
@@ -3538,9 +3776,29 @@ function bind(){
    document.querySelectorAll('.view').forEach(view=>{
     view.classList.toggle('active',view.id===`view-${button.dataset.view}`);
    });
+   if(button.dataset.view==='play'){
+    document.body.classList.remove('mobile-reference-open');
+    if($('mobileReferenceButton'))$('mobileReferenceButton').textContent='一覧・資料';
+   }
    requestAnimationFrame(scheduleAssignmentFit);
   });
  });
+
+ const syncMobileMidiStatus=()=>{
+  const sourceText=$('statusText'),sourceDot=$('statusDot');
+  if($('mobileStatusText'))$('mobileStatusText').textContent=sourceText?.textContent||'MIDI未接続';
+  if($('mobileStatusDot'))$('mobileStatusDot').className=sourceDot?.className||'status-dot';
+  if($('mobileMidiButton')){
+   const ready=Boolean(midiAccess&&(midiInput||midiOutput));
+   $('mobileMidiButton').textContent=ready?'再接続':'MIDI接続';
+   $('mobileMidiButton').classList.toggle('primary',!ready);
+  }
+ };
+ if($('statusText')&&'MutationObserver' in window){
+  new MutationObserver(syncMobileMidiStatus).observe($('statusText'),{childList:true,subtree:true,attributes:true});
+  new MutationObserver(syncMobileMidiStatus).observe($('statusDot'),{attributes:true});
+ }
+ syncMobileMidiStatus();
 
  window.addEventListener('blur',()=>{if(!hold)panic()});
 }
