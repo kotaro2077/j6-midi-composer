@@ -2525,6 +2525,14 @@ html{font-size:112.5%}
 @media(max-width:420px){
  #view-patterns .controls{grid-template-columns:1fr!important}
 }
+/* Auto-detect is the confirmation action, so keep it visually distinct. */
+#playDetectReset,
+#playDetectReset.primary{
+ background:#42cf78!important;
+ border-color:#8cebb0!important;
+ color:#06150c!important;
+}
+#playDetectReset:hover{filter:brightness(1.08)}
 </style>
 </head>
 <body>
@@ -2541,7 +2549,6 @@ html{font-size:112.5%}
   <nav class="tabs" aria-label="メインメニュー">
     <button class="active" data-view="play">PLAY</button>
     <button data-view="chords">コードセット一覧</button>
-    <button data-view="patterns">パターン</button>
     <button data-view="monitor">MIDIログ</button>
     <button id="officialSitesButton" type="button" aria-expanded="false" aria-controls="officialSitesPanel">公式サイト</button>
   </nav>
@@ -2705,7 +2712,7 @@ html{font-size:112.5%}
             <span>BYPASS LEVEL</span>
             <span class="rotary-level-control">
               <span id="monitorLevelKnob" class="rotary-knob" aria-hidden="true"><i></i></span>
-              <input id="monitorLevel" type="range" min="0" max="2" value="0.8" step="0.01" orient="vertical" aria-label="BYPASS LEVEL（上で大きく、下で小さく）" title="上で大きく、下で小さく">
+              <input id="monitorLevel" type="range" min="0" max="4" value="0.8" step="0.01" orient="vertical" aria-label="BYPASS LEVEL（上で大きく、下で小さく、最大400%）" title="上で大きく、下で小さく（最大400%）">
               <b id="monitorLevelValue">80%</b>
             </span>
             </label>
@@ -2800,7 +2807,7 @@ html{font-size:112.5%}
 const $=id=>document.getElementById(id);
 const noteNames=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const flatNames=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
-const transposeValues=Array.from({length:23},(_,index)=>index-11);
+const transposeValues=Array.from({length:25},(_,index)=>index-12);
 let midiAccess=null,midiInput=null,midiOutput=null,hold=false;
 const midiInputListeners=new Map();
 let midiRefreshTimer=null,lastMidiSignature='',lastMidiSignatureAt=0;
@@ -2822,6 +2829,7 @@ let audioContext=null;
 let inputStream=null,inputSource=null,inputAnalyser=null,inputAnalysisSink=null;
 let inputMonitorGain=null,inputBypassDestination=null,inputMonitorEnabled=false,inputWaveFrame=null;
 let lastAudioRenderAt=0;
+let audioRenderProfile={name:'BALANCED',interval:66,fftSize:2048,dpr:1.25,spectrumPoints:56,wavePointsPerPixel:1};
 let audioInputCatalog=[],audioOutputCatalog=[],lastAudioSignalAt=0;
 let audioPermissionGranted=false,audioAutoConnectEnabled=false,audioRouteBusy=false,audioDeviceChangeTimer=null;
 let audioInputManuallySelected=false;
@@ -3220,9 +3228,10 @@ async function startAudioInput(requestPermission=!audioPermissionGranted,preferD
   const context=await ensureAudio();
   inputSource=context.createMediaStreamSource(inputStream);
 
+  audioRenderProfile=detectAudioRenderProfile();
   inputAnalyser=context.createAnalyser();
-  inputAnalyser.fftSize=4096;
-  inputAnalyser.smoothingTimeConstant=.45;
+  inputAnalyser.fftSize=audioRenderProfile.fftSize;
+  inputAnalyser.smoothingTimeConstant=audioRenderProfile.name==='HIGH'?.45:.58;
   fftRenderDisabled=false;
   fftRenderWarningShown=false;
 
@@ -3253,7 +3262,7 @@ async function startAudioInput(requestPermission=!audioPermissionGranted,preferD
   const confirmedJ6=isJ6AudioDevice(selected||{label:track.label||''});
   $('audioInputStatus').textContent=`INPUT：${inputLabel}`;
   $('audioTrackStatus').textContent=
-   `FORMAT：${settings.sampleRate||context.sampleRate} Hz / ${settings.channelCount||1} ch`;
+   `FORMAT：${settings.sampleRate||context.sampleRate} Hz / ${settings.channelCount||1} ch / ${audioRenderProfile.name}`;
   $('usbAudioStatus').textContent=
    mode==='j6usb'&&!confirmedJ6?'CONNECTED（名称未確認）':'CONNECTED';
   $('usbAudioStatus').style.color=
@@ -3380,11 +3389,26 @@ function updateMonitorLevelControl(){
  const knob=$('monitorLevelKnob');
  if(!input||!knob)return;
  const min=Number(input.min)||0;
- const max=Number(input.max)||2;
+ const max=Number(input.max)||4;
  const value=Math.max(min,Math.min(max,Number(input.value)||0));
  const ratio=(value-min)/Math.max(.001,max-min);
  knob.style.setProperty('--knob-angle',`${-135+ratio*270}deg`);
  $('monitorLevelValue').textContent=`${Math.round(value*100)}%`;
+}
+
+function detectAudioRenderProfile(){
+ const cores=Number(navigator.hardwareConcurrency)||4;
+ const memory=Number(navigator.deviceMemory)||4;
+ const saveData=Boolean(navigator.connection?.saveData);
+ const reducedMotion=Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+ const compactViewport=Math.min(window.innerWidth||1024,window.screen?.width||1024)<700;
+ if(saveData||reducedMotion||cores<=2||memory<=2){
+  return {name:'ECO',interval:100,fftSize:1024,dpr:1,spectrumPoints:36,wavePointsPerPixel:.6};
+ }
+ if(cores<=4||memory<=4||compactViewport){
+  return {name:'BALANCED',interval:66,fftSize:2048,dpr:1.25,spectrumPoints:56,wavePointsPerPixel:1};
+ }
+ return {name:'HIGH',interval:40,fftSize:4096,dpr:1.5,spectrumPoints:80,wavePointsPerPixel:1.5};
 }
 
 function drawEmptyAudioCanvas(){
@@ -3402,7 +3426,7 @@ function drawEmptyAudioCanvas(){
 
 function sizeAudioCanvas(canvas,context){
  const rect=canvas.getBoundingClientRect();
- const ratio=Math.min(1.5,window.devicePixelRatio||1);
+ const ratio=Math.min(audioRenderProfile.dpr,window.devicePixelRatio||1);
  const width=Math.max(120,Math.round(rect.width));
  const height=Math.max(100,Math.round(rect.height));
  if(canvas.width!==Math.round(width*ratio))canvas.width=Math.round(width*ratio);
@@ -3438,8 +3462,7 @@ function drawAudioInput(){
  const frequencyData=new Uint8Array(inputAnalyser?.frequencyBinCount||2048);
 
  const render=(timestamp=performance.now())=>{
-  // 20 fps is sufficient for monitoring and substantially reduces CPU/GPU use.
-  if(timestamp-lastAudioRenderAt<50){
+  if(timestamp-lastAudioRenderAt<audioRenderProfile.interval){
    inputWaveFrame=requestAnimationFrame(render);
    return;
   }
@@ -3494,18 +3517,21 @@ function drawAudioInput(){
    context.lineWidth=2;
    context.beginPath();
    const waveformZoom=3;
-   for(let i=0;i<timeData.length;i++){
+   const maxWavePoints=Math.max(120,Math.round(width*audioRenderProfile.wavePointsPerPixel));
+   const waveStep=Math.max(1,Math.ceil(timeData.length/maxWavePoints));
+   let firstWavePoint=true;
+   for(let i=0;i<timeData.length;i+=waveStep){
     const x=i/(timeData.length-1)*width;
     const centeredSample=timeData[i]-dcOffset;
     const y=Math.max(2,Math.min(height-2,height/2-centeredSample*(height*.44)*waveformZoom));
-    if(i===0)context.moveTo(x,y);
+    if(firstWavePoint){context.moveTo(x,y);firstWavePoint=false}
     else context.lineTo(x,y);
    }
    context.stroke();
 
    if(fftReady){
     try{
-     const pointsCount=Math.max(32,Math.min(80,Math.floor(fftSize.width/6)));
+     const pointsCount=Math.max(24,Math.min(audioRenderProfile.spectrumPoints,Math.floor(fftSize.width/6)));
      const nyquist=Math.max(1,(audioContext?.sampleRate||48000)/2);
      const minHz=30,maxHz=Math.max(minHz+1,Math.min(20000,nyquist));
      const points=[];
@@ -4043,16 +4069,17 @@ function scheduleProgressionReset(){
 function matchCurrentJ6Assignment(notes){
  const set=chordSets.find(item=>item.n===+$('chordSetSelect').value);
  if(!set)return null;
+ const transpose=Number($('transposeSelect')?.value)||0;
  const captured={
   count:notes.length,
   intervalSig:normalizedIntervalSignature(notes),
   pcSig:pitchClassSignature(notes)
  };
  for(let index=0;index<12;index++){
-  const target=voicingProfile(set.v[index]);
+  const target=voicingProfile(set.v[index],transpose);
   if(captured.count===target.count&&captured.intervalSig===target.intervalSig){
    return {
-    name:set.c[index]||noteNames[index],
+    name:transposeLabel(set.c[index],transpose)||noteNames[(index+transpose+120)%12],
     key:noteNames[index],
     setNo:set.n
    };
@@ -5046,7 +5073,7 @@ function initChordSets(){
   $('transposeSelect').add(new Option(label,value));
   $('playTranspose').add(new Option(label,value));
  });
- $('chordSetSelect').value='1';renderChordSet();renderChordTable();
+ $('chordSetSelect').value='1';renderChordSet();
 }
 function formatTranspose(value){
  const transpose=Number(value)||0;
@@ -5064,11 +5091,17 @@ function transposeLabel(label,shift){
 }
 function renderChordSet(){
  buildJ6Assignment();
+ renderChordTable();
 }
 function renderChordTable(){
  const q=$('chordSearch').value.trim().toLowerCase();
- const list=chordSets.filter(s=>!q||(`${s.n} ${s.g} ${s.c.join(' ')}`).toLowerCase().includes(q));
- $('chordTable').innerHTML=list.map(s=>`<tr data-rowset="${s.n}"><td>${s.n}</td><td>${s.g}</td>${s.c.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+ const shift=+$('transposeSelect').value||0;
+ const displayChords=set=>set.c.map(chord=>transposeLabel(chord,shift));
+ const list=chordSets.filter(s=>{
+  const displayed=displayChords(s);
+  return !q||(`${s.n} ${s.g} ${s.c.join(' ')} ${displayed.join(' ')}`).toLowerCase().includes(q);
+ });
+ $('chordTable').innerHTML=list.map(s=>`<tr data-rowset="${s.n}"><td>${s.n}</td><td>${s.g}</td>${displayChords(s).map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
  document.querySelectorAll('[data-rowset]').forEach(r=>r.onclick=()=>{$('chordSetSelect').value=r.dataset.rowset;renderChordSet();window.scrollTo({top:0,behavior:'smooth'})});
 }
 function initPatterns(){
