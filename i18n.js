@@ -5,36 +5,45 @@ const currentLanguage=languageParam==='en'?'en':'ja';
 
 const englishText={
   'スマートフォン操作バー':'Mobile controls',
+  'メインメニュー':'Main menu',
   'MIDI未接続':'MIDI disconnected',
   'MIDI接続':'CONNECT MIDI',
   '閉じる':'CLOSE',
   '一覧・資料':'LISTS / HELP',
   '本Webサイトは非公式であり、Rolandの公式情報をもとに有志が制作したサイトです。Roland株式会社とは関係ありません。':'This is an unofficial community website based on information published by Roland. It is not affiliated with Roland Corporation.',
   'MIDI設定':'MIDI SETTINGS',
+  'MIDI ONを押す':'PRESS MIDI ON',
+  'ブラウザのMIDI使用を許可':'Allow MIDI access in your browser',
+  'J-6の電源を入れ直す':'POWER-CYCLE THE J-6',
+  'USB接続のまま OFF → ON':'Keep USB connected and switch OFF → ON',
+  '自動接続':'AUTO CONNECT',
+  '追加操作は不要です':'No additional action is required',
+  '最初にMIDI ONを押してください。':'First, press MIDI ON.',
   '未接続':'Disconnected',
   'Web MIDIは無効です':'Web MIDI is disabled',
   '認識がうまくされない場合はJ-6の電源を再投入してください。':'If the J-6 is not detected correctly, power-cycle the unit.',
   'コードセット一覧':'CHORD SETS',
-  '公式マニュアル':'OFFICIAL MANUAL',
   'パターン':'PATTERNS',
   'MIDIログ':'MIDI LOG',
   'ガイド':'GUIDE',
   'コード一覧':'CHORD LIST',
   'フレーズ一覧':'PHRASE LIST',
   'J-6公式':'OFFICIAL J-6',
-  'J-6鍵盤割り当て':'J-6 KEY ASSIGNMENT',
+  '公式サイト':'OFFICIAL SITES',
   '未判定':'Not detected',
   '自動判定コードセット':'AUTO-DETECTED CHORD SET',
   '手動設定':'MANUAL SET',
   'コードセット番号（2桁）':'Two-digit chord set number',
   '確定':'CONFIRM',
-  '再判定':'DETECT AGAIN',
+  '自動判定':'AUTO DETECT',
   'Cを押したまま判定 → 離して次のキー':'Hold C to detect → release, then play the next key',
-  '構成音':'CHORD TONES',
+  'オクターブ切り替え':'Octave controls',
+  'オクターブを1下げる':'Lower octave by one',
+  'オクターブを1上げる':'Raise octave by one',
+  'オクターブ値':'Octave value',
   'コード':'CHORD',
   'ルート':'ROOT',
   'ベース':'BASS',
-  'ベロシティ':'VELOCITY',
   '受信したMIDI構成音':'RECEIVED MIDI NOTES',
   'コード進行':'CHORD PROGRESSION',
   '選択中コードの構成音':'NOTES IN SELECTED CHORD',
@@ -47,7 +56,7 @@ const englishText={
   'INPUT：—':'INPUT: —',
   'FORMAT：—':'FORMAT: —',
   'OUTPUT：OS DEFAULT':'OUTPUT: OS DEFAULT',
-  'OSによってJ-6が「USB Audio」「Digital Input」または別名で表示されます。\n            USB候補を選択してCONNECTしてください。':'Depending on your OS, the J-6 may appear as “USB Audio,” “Digital Input,” or another name. Select the likely USB device, then choose CONNECT.',
+  'OSによってJ-6が「USB Audio」「Digital Input」または別名で表示されます。\n            DEVICE REFRESH後は、選択した機器へ自動接続します。':'Depending on your OS, the J-6 may appear as “USB Audio,” “Digital Input,” or another name. After DEVICE REFRESH, the selected device connects automatically.',
   '使用中のコードセットを特定':'IDENTIFY THE ACTIVE CHORD SET',
   'J-6でCから半音ずつコードを鳴らします':'Play each J-6 chord chromatically from C',
   '判定を開始':'START DETECTION',
@@ -60,25 +69,6 @@ const englishText={
   'MIDI入力構成音を表示':'Shows notes received over MIDI',
   '収録セット一覧':'INCLUDED CHORD SETS',
   '選択すると上に表示':'Select a row to show it above',
-  '公式マニュアル情報':'OFFICIAL MANUAL INFORMATION',
-  'PDFを開く':'OPEN PDF',
-  '音色選択':'TONE SELECTION',
-  'バンク選択':'BANK SELECTION',
-  'SOUND':'SOUND',
-  '1～8':'1–8',
-  'を押して音色選択モードに入り、ステップ':' to enter tone-selection mode, then use steps ',
-  'で音色を選択します。TEMPO/VALUEでも変更できます。':' to select a tone. You can also change it with TEMPO/VALUE.',
-  'SOUNDを押しながらステップ1～8':'Hold SOUND and press steps 1–8',
-  'を押します。8バンク×8音色で、プリセット・パッチは64音色です。':'. There are eight banks with eight tones each, for 64 preset patches.',
-  'エフェクト':'EFFECTS',
-  'MIDI受信':'MIDI RECEIVE',
-  'ユーザー・パターンは64個です。MIDI Program Change 0～63でPattern 1～64を扱います。':'There are 64 user patterns. MIDI Program Change 0–63 selects Pattern 1–64.',
-  '内蔵エフェクトは':'The built-in effects are',
-  'と':'and',
-  'です。':'.',
-  'USB Type-C端子は':'The USB Type-C port supports',
-  'に対応します。':'.',
-  'Note On/Off、CC64 Hold、Program Change、Clock、Start、Stopを扱います。公開MIDI仕様では音色つまみ位置の読み出しには対応しません。':'Supports Note On/Off, CC64 Hold, Program Change, Clock, Start, and Stop. The published MIDI specification does not support reading tone-knob positions.',
   'パターン Program Change':'PATTERN PROGRAM CHANGE',
   '送信':'SEND',
   'PROGRAM CHANGE送信':'SEND PROGRAM CHANGE',
@@ -104,6 +94,9 @@ const englishText={
 
 const dynamicEnglish={
   '再接続':'RECONNECT',
+  '接続済み':'CONNECTED',
+  '再検索':'SEARCH AGAIN',
+  'J-6電源 OFF→ON':'POWER-CYCLE J-6',
   '鍵盤へ':'BACK TO KEYS',
   'MIDI出力を開けません':'Could not open MIDI output',
   'MIDI出力ポートが開かれていません':'MIDI output port is not open',
@@ -121,6 +114,11 @@ const dynamicEnglish={
   'Web Audio非対応':'Web Audio is not supported',
   '入力機器なし':'No input devices',
   'MediaDevices非対応':'MediaDevices is not supported',
+  '音声入力の許可が拒否されています。ブラウザのサイト設定でマイクを許可してください。':'Audio input permission was denied. Allow microphone access in your browser site settings.',
+  '利用できる音声入力機器が見つかりません。':'No audio input device was found.',
+  '音声入力機器を開けません。他のアプリで使用中でないか確認してください。':'The audio input device could not be opened. Check whether another app is using it.',
+  '音声機器の読み込みにはHTTPS接続が必要です。':'Audio devices require an HTTPS connection.',
+  '音声機器の読み込みに失敗しました。':'Failed to load audio devices.',
   'USB候補を選択':'Select a likely USB device',
   'OUTPUT：OS設定を使用':'OUTPUT: Using OS settings',
   '入力機器を選択してください':'Select an input device',
@@ -130,7 +128,7 @@ const dynamicEnglish={
   '名称なしの音声入力':'Unnamed audio input',
   'CONNECTED（名称未確認）':'CONNECTED (name unconfirmed)',
   '停止':'Stopped',
-  '先に入力をCONNECTしてください':'Connect an input first',
+  '先にDEVICE REFRESHを押してください':'Press DEVICE REFRESH first',
   '選択入力を確認':'Check the selected input',
   'FFT API非対応':'FFT API is not supported',
   '公式100セット・HTML内蔵':'100 official sets embedded in HTML',
@@ -140,16 +138,25 @@ const dynamicEnglish={
   'J-6のコードモードでCから順に弾いてください。2音以上の構成音と音程配置で判定します。':'In J-6 chord mode, play from C upward. Detection uses voicings of two or more notes and their intervals.',
   '01〜99の2桁で入力してください':'Enter two digits from 01 to 99',
   '手動設定で固定中':'Locked to manual setting',
-  '手動設定を使用中です。「再判定」で自動判定へ戻せます。':'Using a manual setting. Choose DETECT AGAIN to return to automatic detection.',
+  '手動設定を使用中です。「自動判定」で自動判定へ戻せます。':'Using a manual setting. Choose AUTO DETECT to return to automatic detection.',
   '12鍵 完了':'All 12 keys complete',
-  'コードセットを確定しました。以降のMIDI入力では更新しません。「再判定」で解除できます。':'The chord set is confirmed and will no longer update from MIDI input. Choose DETECT AGAIN to unlock it.',
+  'コードセットを確定しました。以降のMIDI入力では更新しません。「自動判定」で解除できます。':'The chord set is confirmed and will no longer update from MIDI input. Choose AUTO DETECT to unlock it.',
   'J-6の C キーを鳴らしてください。コードが安定したら自動で登録します。':'Play the C key on the J-6. The chord is captured automatically once stable.',
   '12キーの登録が完了しました。候補の一致率を確認してください。':'All 12 keys are captured. Check the candidate match scores.',
   '公式100セットを読み込むまで判定しません。':'Detection will begin after the 100 official sets have loaded.',
   'Roland J-6 Version 1.02のコード・セット1～100をHTML内へ保存済みです。起動時の通信はありません。':'Roland J-6 Version 1.02 chord sets 1–100 are embedded in the HTML; no network request is made at startup.',
   '内蔵コードセットが100件揃っていないため判定を停止しています。':'Detection is stopped because the embedded data does not contain all 100 chord sets.',
-  'J-6はOSによりUSB Audio、Digital Input、名称なしの入力として表示される場合があります。選択中の入力へ接続します。':'Depending on your OS, the J-6 may appear as USB Audio, Digital Input, or an unnamed input. This connects to the selected input.',
-  'J-6 MIX OUT/PHONESをオーディオインターフェースの入力へ接続してください。':'Connect the J-6 MIX OUT/PHONES jack to an audio-interface input.'
+  'J-6はOSによりUSB Audio、Digital Input、名称なしの入力として表示される場合があります。DEVICE REFRESH後は選択中の入力へ自動接続します。':'Depending on your OS, the J-6 may appear as USB Audio, Digital Input, or an unnamed input. After DEVICE REFRESH, the selected input connects automatically.',
+  'J-6 MIX OUT/PHONESをオーディオインターフェースの入力へ接続してください。':'Connect the J-6 MIX OUT/PHONES jack to an audio-interface input.',
+  'ブラウザのMIDI使用を許可してください。':'Allow MIDI access in your browser.',
+  '次に、USB接続のままJ-6の電源をOFF→ONしてください。自動で接続します。':'Next, keep USB connected and switch the J-6 OFF, then ON. It will connect automatically.',
+  'USB接続のままJ-6の電源をOFF→ONしてください。自動で接続します。':'Keep USB connected and switch the J-6 OFF, then ON. It will connect automatically.',
+  'J-6の再接続を待っています。電源をOFF→ONしてください。':'Waiting for the J-6. Switch its power OFF, then ON.',
+  'J-6を検出しました。MIDIポートを開いています…':'J-6 detected. Opening its MIDI ports…',
+  'J-6が見つかりません。USB接続を確認し、J-6の電源をOFF→ONしてください。':'J-6 was not found. Check the USB connection, then switch the J-6 OFF and ON.',
+  'MIDI入力がありません。USB接続を保ったままJ-6の電源をOFF→ONしてください。':'No MIDI input was received. Keep USB connected and switch the J-6 OFF, then ON.',
+  'J-6 MIDIが見つかりません':'J-6 MIDI was not found',
+  'J-6の電源をOFF→ONしてください':'Switch the J-6 power OFF, then ON'
 };
 
 function translateDynamicString(value){
@@ -175,6 +182,7 @@ function translateDynamicString(value){
     .replace(/^手動確定 /,'Manually confirmed ')
     .replace(/^(.+) \/ 100セット中 \/ 一致度 (\d+)%$/,'$1 / 100 sets / match $2%')
     .replace(/^登録: (.+)。次は (.+) キーを鳴らしてください。$/,'Captured: $1. Next, play the $2 key.')
+    .replace(/^接続完了：(.+)$/,'Connected: $1')
     .replaceAll('：',': ');
 }
 
@@ -258,7 +266,6 @@ function translateStaticPage(){
         .replace('/jpn/28318656.html','/eng/28645808.html')
         .replace('/jpn/','/eng/');
     });
-    document.querySelectorAll('a[href*="J-6_jpn02_W.pdf"]').forEach(link=>link.href=link.href.replace('J-6_jpn02_W.pdf','J-6_eng02_W.pdf'));
     document.querySelectorAll('a[href*="roland.com/jp/"]').forEach(link=>link.href=link.href.replace('roland.com/jp/','roland.com/global/'));
   }
 }
